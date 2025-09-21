@@ -12,10 +12,11 @@ function Login() {
     showLoading('Entrando no sistema...');
     console.log('Login:', { usuario, senha });
     
-    // Simular loading por 2 segundos
+    // Simular loading por 2 segundos e redirecionar para home
     setTimeout(() => {
       hideLoading();
-      // Aqui será a lógica de autenticação
+      // Redirecionar para a página home sem verificação de credenciais
+      window.location.href = '/home';
     }, 2000);
   };
 
@@ -288,9 +289,9 @@ function Login() {
           }),
           React.createElement('h1', { 
             style: {
-              fontSize: '48px',
+              fontSize: '32px',
               fontWeight: 'bold',
-              marginBottom: '16px',
+              marginBottom: '12px',
               background: 'linear-gradient(45deg, #7d26d9, #fb8f37)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -299,9 +300,9 @@ function Login() {
           }, 'Zyra'),
           React.createElement('h2', { 
             style: {
-              fontSize: '24px',
+              fontSize: '16px',
               fontWeight: '500',
-              marginBottom: '32px',
+              marginBottom: '24px',
               color: 'rgba(255, 255, 255, 0.9)'
             }
           }, 'Sistema de Monitoramento de Equipamentos')
@@ -309,22 +310,22 @@ function Login() {
         
         React.createElement('div', { 
           style: {
-            fontSize: '18px',
-            lineHeight: '1.6',
+            fontSize: '12px',
+            lineHeight: '1.5',
             color: 'rgba(255, 255, 255, 0.8)',
-            marginBottom: '32px'
+            marginBottom: '24px'
           }
         },
-          React.createElement('p', { style: { marginBottom: '16px' } }, '🎯 Controle total da sua infraestrutura de rede'),
-          React.createElement('p', { style: { marginBottom: '16px' } }, '📊 Monitoramento em tempo real'),
-          React.createElement('p', { style: { marginBottom: '16px' } }, '🔔 Alertas inteligentes'),
-          React.createElement('p', { style: { marginBottom: '16px' } }, '💾 Gestão de backups'),
-          React.createElement('p', { style: { marginBottom: '16px' } }, '🌐 Topologia visual da rede')
+          React.createElement('p', { style: { marginBottom: '8px' } }, '🎯 Controle total da sua infraestrutura de rede'),
+          React.createElement('p', { style: { marginBottom: '8px' } }, '📊 Monitoramento em tempo real'),
+          React.createElement('p', { style: { marginBottom: '8px' } }, '🔔 Alertas inteligentes'),
+          React.createElement('p', { style: { marginBottom: '8px' } }, '💾 Gestão de backups'),
+          React.createElement('p', { style: { marginBottom: '8px' } }, '🌐 Topologia visual da rede')
         ),
         
         React.createElement('div', { 
           style: {
-            fontSize: '16px',
+            fontSize: '11px',
             color: 'rgba(255, 255, 255, 0.7)',
             fontStyle: 'italic'
           }
@@ -349,15 +350,15 @@ function Login() {
         },
           React.createElement('h3', { 
             style: {
-              fontSize: '28px',
+              fontSize: '20px',
               fontWeight: 'bold',
               color: '#7d26d9',
-              marginBottom: '8px'
+              marginBottom: '6px'
             }
           }, 'Entrar'),
           React.createElement('p', { 
             style: {
-              fontSize: '14px',
+              fontSize: '11px',
               color: '#737373'
             }
           }, 'Acesse sua conta para continuar')
@@ -370,7 +371,7 @@ function Login() {
           React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
             React.createElement('label', { 
               style: {
-                fontSize: '14px',
+                fontSize: '11px',
                 fontWeight: '500',
                 color: '#404040'
               }
@@ -380,10 +381,10 @@ function Login() {
               value: usuario,
               onChange: (e) => setUsuario(e.target.value),
               style: {
-                padding: '12px 16px',
+                padding: '10px 12px',
                 border: '2px solid #d4d4d4',
-                borderRadius: '12px',
-                fontSize: '14px',
+                borderRadius: '8px',
+                fontSize: '11px',
                 outline: 'none',
                 transition: 'border-color 0.2s'
               },
@@ -396,7 +397,7 @@ function Login() {
           React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
             React.createElement('label', { 
               style: {
-                fontSize: '14px',
+                fontSize: '11px',
                 fontWeight: '500',
                 color: '#404040'
               }
@@ -409,10 +410,10 @@ function Login() {
                 value: senha,
                 onChange: (e) => setSenha(e.target.value),
                 style: {
-                  padding: '12px 50px 12px 16px',
+                  padding: '10px 40px 10px 12px',
                   border: '2px solid #d4d4d4',
-                  borderRadius: '12px',
-                  fontSize: '14px',
+                  borderRadius: '8px',
+                  fontSize: '11px',
                   outline: 'none',
                   transition: 'border-color 0.2s',
                   width: '100%'
@@ -476,12 +477,12 @@ function Login() {
             type: 'submit',
             disabled: loading,
             style: {
-              padding: '12px 24px',
+              padding: '10px 20px',
               backgroundColor: loading ? '#a3a3a3' : '#7d26d9',
               color: 'white',
               border: 'none',
-              borderRadius: '12px',
-              fontSize: '16px',
+              borderRadius: '8px',
+              fontSize: '12px',
               fontWeight: '500',
               cursor: loading ? 'not-allowed' : 'pointer',
               transition: 'background-color 0.2s',
@@ -504,7 +505,7 @@ function Login() {
           },
             React.createElement('p', { 
               style: {
-                fontSize: '14px',
+                fontSize: '11px',
                 color: '#737373'
               }
             }, 'Não tem uma conta? '),
