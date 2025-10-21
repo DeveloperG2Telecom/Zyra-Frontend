@@ -1,5 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from './shared/Layout';
+import EquipamentoCard from './shared/EquipamentoCard';
+import EquipamentoModal from './shared/EquipamentoModal';
+import ModalAdicionarEquipamento from './shared/ModalAdicionarEquipamento';
+import ModalEditarEquipamento from './shared/ModalEditarEquipamento';
+import { useEquipamentos } from '../hooks/useEquipamentos';
+import { useDebounce } from '../hooks/useDebounce';
+import { useNotification } from '../hooks/useNotification';
+import Notification from './shared/Notification';
 
 function Equipamentos() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
@@ -9,137 +17,119 @@ function Equipamentos() {
   const [selectedEquipamento, setSelectedEquipamento] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [equipamentoParaEditar, setEquipamentoParaEditar] = useState(null);
 
-  // Dados mock dos equipamentos
-  const equipamentos = [
-    {
-      id: 1,
-      nome: 'Router Principal - Matriz',
-      modelo: 'RB4011iGS+RM',
-      fabricante: 'Mikrotik',
-      serial: '7C2E8D123456',
-      mac: '48:8F:5A:2E:8D:12',
-      ipPublico: '200.160.2.100',
-      ipPrivado: '192.168.1.1',
-      foto: '/logo-sem-fundo.png', // Placeholder
-      portas: 10,
-      alimentacao: 'PoE+ 24V, 30W',
-      dataAquisicao: '2023-01-15',
-      garantia: '24 meses',
-      firmware: 'RouterOS 7.10.2',
-      localidade: 'São Paulo - SP',
-      equipamentoAnterior: null, // Primeiro da sequência
-      equipamentoProximo: {
-        id: 2,
-        nome: 'Switch Core - Data Center',
-        ipPrivado: '192.168.1.2'
-      }
-    },
-    {
-      id: 2,
-      nome: 'Switch Core - Data Center',
-      modelo: 'CRS326-24G-2S+RM',
-      fabricante: 'Mikrotik',
-      serial: '7C2E8D789012',
-      mac: '48:8F:5A:2E:8D:78',
-      ipPublico: '200.160.2.101',
-      ipPrivado: '192.168.1.2',
-      foto: '/logo-sem-fundo.png',
-      portas: 26,
-      alimentacao: 'AC 100-240V, 20W',
-      dataAquisicao: '2023-02-20',
-      garantia: '36 meses',
-      firmware: 'RouterOS 7.10.2',
-      localidade: 'São Paulo - SP',
-      equipamentoAnterior: {
-        id: 1,
-        nome: 'Router Principal - Matriz',
-        ipPrivado: '192.168.1.1'
-      },
-      equipamentoProximo: {
-        id: 3,
-        nome: 'AP WiFi - Piso 1',
-        ipPrivado: '192.168.1.10'
-      }
-    },
-    {
-      id: 3,
-      nome: 'AP WiFi - Piso 1',
-      modelo: 'cAP ac',
-      fabricante: 'Mikrotik',
-      serial: '7C2E8D345678',
-      mac: '48:8F:5A:2E:8D:34',
-      ipPublico: '200.160.2.102',
-      ipPrivado: '192.168.1.10',
-      foto: '/logo-sem-fundo.png',
-      portas: 1,
-      alimentacao: 'PoE 24V, 6W',
-      dataAquisicao: '2023-03-10',
-      garantia: '24 meses',
-      firmware: 'RouterOS 7.10.2',
-      localidade: 'São Paulo - SP',
-      equipamentoAnterior: {
-        id: 2,
-        nome: 'Switch Core - Data Center',
-        ipPrivado: '192.168.1.2'
-      },
-      equipamentoProximo: {
-        id: 4,
-        nome: 'Router Filial - Rio',
-        ipPrivado: '192.168.2.1'
-      }
-    },
-    {
-      id: 4,
-      nome: 'Router Filial - Rio',
-      modelo: 'RB750Gr3',
-      fabricante: 'Mikrotik',
-      serial: '7C2E8D901234',
-      mac: '48:8F:5A:2E:8D:90',
-      ipPublico: '200.160.3.100',
-      ipPrivado: '192.168.2.1',
-      foto: '/logo-sem-fundo.png',
-      portas: 5,
-      alimentacao: 'AC 100-240V, 8W',
-      dataAquisicao: '2023-04-05',
-      garantia: '24 meses',
-      firmware: 'RouterOS 7.9.2',
-      localidade: 'Rio de Janeiro - RJ',
-      equipamentoAnterior: {
-        id: 3,
-        nome: 'AP WiFi - Piso 1',
-        ipPrivado: '192.168.1.10'
-      },
-      equipamentoProximo: {
-        id: 5,
-        nome: 'Switch Edge - Filial BH',
-        ipPrivado: '192.168.3.1'
-      }
-    },
-    {
-      id: 5,
-      nome: 'Switch Edge - Filial BH',
-      modelo: 'CRS112-8P-4S-IN',
-      fabricante: 'Mikrotik',
-      serial: '7C2E8D567890',
-      mac: '48:8F:5A:2E:8D:56',
-      ipPublico: '200.160.4.100',
-      ipPrivado: '192.168.3.1',
-      foto: '/logo-sem-fundo.png',
-      portas: 12,
-      alimentacao: 'PoE 24V, 15W',
-      dataAquisicao: '2023-05-12',
-      garantia: '24 meses',
-      firmware: 'RouterOS 7.8.5',
-      localidade: 'Belo Horizonte - MG',
-      equipamentoAnterior: {
-        id: 4,
-        nome: 'Router Filial - Rio',
-        ipPrivado: '192.168.2.1'
-      },
-      equipamentoProximo: null // Último da sequência
+  // Usar hook personalizado para equipamentos
+  const { equipamentos, loading, error, loadEquipamentos, refreshEquipamentos, createEquipamento, updateEquipamento, deleteEquipamento } = useEquipamentos();
+  
+  // Hook para notificações
+  const { notifications, showSuccess, showError, removeNotification } = useNotification();
+  
+  // Debug: Log dos equipamentos
+  React.useEffect(() => {
+    console.log('📊 COMPONENTE: Equipamentos atualizados:', equipamentos);
+    console.log('📊 COMPONENTE: Quantidade de equipamentos:', equipamentos?.length || 0);
+    console.log('📊 COMPONENTE: Loading:', loading);
+    console.log('📊 COMPONENTE: Error:', error);
+  }, [equipamentos, loading, error]);
+
+  // Carregamento inicial apenas uma vez
+  React.useEffect(() => {
+    console.log('Componente Equipamentos montado');
+  }, []);
+  
+  // Debounce da pesquisa para melhor performance
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Filtro otimizado com debounce
+  const filteredEquipamentos = React.useMemo(() => {
+    console.log('🔍 FILTRO: Aplicando filtro...');
+    console.log('🔍 FILTRO: Equipamentos originais:', equipamentos?.length || 0);
+    console.log('🔍 FILTRO: Termo de busca:', debouncedSearchTerm);
+    
+    if (!debouncedSearchTerm) {
+      console.log('🔍 FILTRO: Sem termo de busca, retornando todos os equipamentos');
+      return equipamentos;
     }
-  ];
+    
+    const searchLower = debouncedSearchTerm.toLowerCase();
+    const filtered = equipamentos.filter(equipamento =>
+      equipamento.nome?.toLowerCase().includes(searchLower) ||
+      equipamento.modelo?.toLowerCase().includes(searchLower) ||
+      equipamento.serialMac?.toLowerCase().includes(searchLower) ||
+      equipamento.ipPrivado?.includes(debouncedSearchTerm) ||
+      equipamento.ipPublico?.includes(debouncedSearchTerm) ||
+      (equipamento.localidade?.endereco?.toLowerCase().includes(searchLower)) ||
+      equipamento.modoAcesso?.toLowerCase().includes(searchLower) ||
+      (equipamento.funcoes?.some(funcao => funcao.toLowerCase().includes(searchLower)))
+    );
+    
+    console.log('🔍 FILTRO: Equipamentos filtrados:', filtered.length);
+    return filtered;
+  }, [equipamentos, debouncedSearchTerm]);
+
+  // Fechar menu de opções quando clicar fora
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showOptionsMenu && !event.target.closest('[data-options-menu]')) {
+        setShowOptionsMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showOptionsMenu]);
+
+  if (loading) {
+    return React.createElement(Layout, { currentPage: '/equipamentos' },
+      React.createElement('div', {
+        style: {
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          color: 'white',
+          fontSize: '18px'
+        }
+      }, 'Carregando equipamentos...')
+    );
+  }
+
+  if (error) {
+    return React.createElement(Layout, { currentPage: '/equipamentos' },
+      React.createElement('div', {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          color: 'white',
+          textAlign: 'center',
+          padding: '20px'
+        }
+      },
+        React.createElement('h2', { style: { marginBottom: '16px' } }, 'Erro ao carregar equipamentos'),
+        React.createElement('p', { style: { marginBottom: '20px', color: 'rgba(255, 255, 255, 0.7)' } }, error),
+        React.createElement('button', {
+          onClick: loadEquipamentos,
+          style: {
+            padding: '10px 20px',
+            backgroundColor: '#7d26d9',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px'
+          }
+        }, 'Tentar Novamente')
+      )
+    );
+  }
 
   const toggleSidebar = () => {
     if (sidebarVisible) {
@@ -167,29 +157,178 @@ function Equipamentos() {
     setSelectedEquipamento(null);
   };
 
-  // Fechar menu de opções quando clicar fora
-  React.useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showOptionsMenu && !event.target.closest('[data-options-menu]')) {
-        setShowOptionsMenu(false);
+  const handleSaveEquipamento = async (equipamentoData) => {
+    console.log('handleSaveEquipamento chamada com:', equipamentoData);
+    try {
+      // Validação apenas do campo obrigatório
+      if (!equipamentoData.nome || equipamentoData.nome.trim() === '') {
+        showError('Por favor, preencha o nome do equipamento.');
+        return;
       }
-    };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showOptionsMenu]);
+      if (!equipamentoData.tipo || equipamentoData.tipo.trim() === '') {
+        showError('Por favor, selecione o tipo do equipamento.');
+        return;
+      }
 
-  const filteredEquipamentos = equipamentos.filter(equipamento =>
-    equipamento.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    equipamento.modelo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    equipamento.fabricante.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    equipamento.ipPrivado.includes(searchTerm) ||
-    equipamento.localidade.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      // Função auxiliar para converter valores vazios em null
+      const toNullIfEmpty = (value) => {
+        if (value === '' || value === undefined || value === null) return null;
+        return value;
+      };
+
+      // Função auxiliar para converter coordenadas
+      const parseCoordinate = (value) => {
+        if (!value || value === '') return null;
+        const parsed = parseFloat(value);
+        return isNaN(parsed) ? null : parsed;
+      };
+
+      // Preparar dados conforme schema do backend (apenas nome obrigatório)
+      const dadosParaSalvar = {
+        nome: equipamentoData.nome.trim(),
+        modelo: toNullIfEmpty(equipamentoData.modelo),
+        serialMac: toNullIfEmpty(equipamentoData.serialMac),
+        ipPublico: toNullIfEmpty(equipamentoData.ipPublico),
+        ipPrivado: toNullIfEmpty(equipamentoData.ipPrivado),
+        localidade: equipamentoData.localidade && (equipamentoData.localidade.lat || equipamentoData.localidade.lng || equipamentoData.localidade.endereco) ? {
+          lat: parseCoordinate(equipamentoData.localidade.lat),
+          lng: parseCoordinate(equipamentoData.localidade.lng),
+          endereco: toNullIfEmpty(equipamentoData.localidade.endereco)
+        } : null,
+        quantidadePortas: toNullIfEmpty(equipamentoData.quantidadePortas),
+        alimentacao: toNullIfEmpty(equipamentoData.alimentacao),
+        dataAquisicao: equipamentoData.dataAquisicao ? new Date(equipamentoData.dataAquisicao).toISOString() : null,
+        tempoGarantia: toNullIfEmpty(equipamentoData.tempoGarantia),
+        versaoFirmware: toNullIfEmpty(equipamentoData.versaoFirmware),
+        modoAcesso: toNullIfEmpty(equipamentoData.modoAcesso),
+        funcoes: equipamentoData.funcoes && equipamentoData.funcoes.length > 0 ? equipamentoData.funcoes : null,
+        status: toNullIfEmpty(equipamentoData.status) || 'Ativo',
+        equipamentoAnterior: toNullIfEmpty(equipamentoData.equipamentoAnterior),
+        equipamentoPosterior: toNullIfEmpty(equipamentoData.equipamentoPosterior),
+        fotoEquipamento: toNullIfEmpty(equipamentoData.fotoEquipamento),
+        pop: toNullIfEmpty(equipamentoData.pop),
+        redeRural: toNullIfEmpty(equipamentoData.redeRural)
+      };
+
+      console.log('Dados do equipamento a ser salvo (formatados):', dadosParaSalvar);
+      
+      const response = await createEquipamento(dadosParaSalvar);
+      
+      if (response.success) {
+        setShowAddModal(false);
+        showSuccess('Equipamento adicionado com sucesso!');
+      } else {
+        throw new Error(response.error?.message || 'Erro ao criar equipamento');
+      }
+    } catch (error) {
+      console.error('Erro ao salvar equipamento:', error);
+      showError(`Erro ao salvar equipamento: ${error.message || 'Tente novamente.'}`);
+    }
+  };
+
+  const handleEditEquipamento = (equipamento) => {
+    console.log('Editar equipamento:', equipamento);
+    // Fechar modal de visualização se estiver aberto
+    setModalVisible(false);
+    setSelectedEquipamento(null);
+    // Abrir modal de edição
+    setEquipamentoParaEditar(equipamento);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditEquipamento = async (equipamentoData) => {
+    console.log('handleSaveEditEquipamento chamada com:', equipamentoData);
+    try {
+      if (!equipamentoData.nome || equipamentoData.nome.trim() === '') {
+        showError('Por favor, preencha o nome do equipamento.');
+        return;
+      }
+
+      if (!equipamentoData.tipo || equipamentoData.tipo.trim() === '') {
+        showError('Por favor, selecione o tipo do equipamento.');
+        return;
+      }
+
+      const toNullIfEmpty = (value) => {
+        if (value === '' || value === undefined || value === null) return null;
+        return value;
+      };
+
+      const parseCoordinate = (value) => {
+        if (!value || value === '') return null;
+        const parsed = parseFloat(value);
+        return isNaN(parsed) ? null : parsed;
+      };
+
+      const dadosParaSalvar = {
+        nome: equipamentoData.nome.trim(),
+        modelo: toNullIfEmpty(equipamentoData.modelo),
+        serialMac: toNullIfEmpty(equipamentoData.serialMac),
+        ipPublico: toNullIfEmpty(equipamentoData.ipPublico),
+        ipPrivado: toNullIfEmpty(equipamentoData.ipPrivado),
+        localidade: equipamentoData.localidade && (equipamentoData.localidade.lat || equipamentoData.localidade.lng || equipamentoData.localidade.endereco) ? {
+          lat: parseCoordinate(equipamentoData.localidade.lat),
+          lng: parseCoordinate(equipamentoData.localidade.lng),
+          endereco: toNullIfEmpty(equipamentoData.localidade.endereco)
+        } : null,
+        quantidadePortas: toNullIfEmpty(equipamentoData.quantidadePortas),
+        alimentacao: toNullIfEmpty(equipamentoData.alimentacao),
+        dataAquisicao: equipamentoData.dataAquisicao ? new Date(equipamentoData.dataAquisicao).toISOString() : null,
+        tempoGarantia: toNullIfEmpty(equipamentoData.tempoGarantia),
+        versaoFirmware: toNullIfEmpty(equipamentoData.versaoFirmware),
+        modoAcesso: toNullIfEmpty(equipamentoData.modoAcesso),
+        funcoes: equipamentoData.funcoes && equipamentoData.funcoes.length > 0 ? equipamentoData.funcoes : null,
+        status: toNullIfEmpty(equipamentoData.status) || 'Ativo',
+        equipamentoAnterior: toNullIfEmpty(equipamentoData.equipamentoAnterior),
+        equipamentoPosterior: toNullIfEmpty(equipamentoData.equipamentoPosterior),
+        fotoEquipamento: toNullIfEmpty(equipamentoData.fotoEquipamento),
+        pop: toNullIfEmpty(equipamentoData.pop),
+        redeRural: toNullIfEmpty(equipamentoData.redeRural)
+      };
+
+      console.log('Dados do equipamento a ser atualizado (formatados):', dadosParaSalvar);
+      
+      const response = await updateEquipamento(equipamentoParaEditar.id, dadosParaSalvar);
+      
+      if (response.success) {
+        setShowEditModal(false);
+        setEquipamentoParaEditar(null);
+        showSuccess('Equipamento atualizado com sucesso!');
+        refreshEquipamentos();
+      } else {
+        throw new Error(response.error?.message || 'Erro ao atualizar equipamento');
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar equipamento:', error);
+      showError(`Erro ao atualizar equipamento: ${error.message || 'Tente novamente.'}`);
+    }
+  };
+
+  const handleDeleteEquipamento = async (equipamentoId) => {
+    try {
+      const response = await deleteEquipamento(equipamentoId);
+      
+      if (response.success) {
+        showSuccess('Equipamento deletado com sucesso!');
+      } else {
+        throw new Error(response.error?.message || 'Erro ao deletar equipamento');
+      }
+    } catch (error) {
+      console.error('Erro ao deletar equipamento:', error);
+      showError(`Erro ao deletar equipamento: ${error.message || 'Tente novamente.'}`);
+    }
+  };
 
   return React.createElement(Layout, { currentPage: '/equipamentos' },
+    // CSS para animação de loading
+    React.createElement('style', null, `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `),
+    
     // Background Animado (mesmo da tela de login)
     React.createElement('div', { 
       style: {
@@ -451,6 +590,38 @@ function Equipamentos() {
             React.createElement('line', { x1: '12', y1: '17', x2: '12', y2: '21' })
           ),
           'Equipamentos'
+        ),
+        React.createElement('button', {
+          onClick: () => window.location.href = '/pops',
+          style: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            border: 'none',
+            background: 'transparent',
+            color: '#404040',
+            fontSize: '13px',
+            fontWeight: '500',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }
+        },
+          React.createElement('svg', {
+            width: '16',
+            height: '16',
+            viewBox: '0 0 24 24',
+            fill: 'none',
+            stroke: 'currentColor',
+            strokeWidth: '2',
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round'
+          },
+            React.createElement('circle', { cx: '12', cy: '12', r: '10' }),
+            React.createElement('path', { d: 'M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z' })
+          ),
+          'POPs'
         ),
         React.createElement('button', {
           onClick: () => window.location.href = '/topologia',
@@ -965,6 +1136,95 @@ function Equipamentos() {
               position: 'relative'
             }
           },
+            // Botão de teste direto
+            React.createElement('button', {
+              onClick: async () => {
+                console.log('🧪 TESTE: Testando conexão direta com backend...');
+                try {
+                  const response = await fetch('http://localhost:3002/api/v1/equipamentos', {
+                    method: 'GET',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                  });
+                  console.log('🧪 TESTE: Status:', response.status);
+                  const data = await response.json();
+                  console.log('🧪 TESTE: Dados recebidos:', data);
+                  alert(`Teste direto: ${response.status} - ${data?.data?.length || 0} equipamentos`);
+                } catch (error) {
+                  console.error('🧪 TESTE: Erro:', error);
+                  alert(`Erro no teste: ${error.message}`);
+                }
+              },
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '36px',
+                height: '36px',
+                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                borderRadius: '8px',
+                color: 'white',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                marginRight: '8px'
+              }
+            },
+              React.createElement('svg', {
+                width: '16',
+                height: '16',
+                viewBox: '0 0 24 24',
+                fill: 'none',
+                stroke: 'currentColor',
+                strokeWidth: '2',
+                strokeLinecap: 'round',
+                strokeLinejoin: 'round'
+              },
+                React.createElement('path', { d: 'M9 12l2 2 4-4' }),
+                React.createElement('path', { d: 'M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.5 0 2.9.37 4.13 1.02' })
+              )
+            ),
+
+            // Botão de refresh
+            React.createElement('button', {
+              onClick: () => {
+                console.log('Refresh manual solicitado pelo usuário');
+                refreshEquipamentos();
+              },
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '36px',
+                height: '36px',
+                backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                border: '1px solid rgba(34, 197, 94, 0.3)',
+                borderRadius: '8px',
+                color: 'white',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                marginRight: '8px'
+              }
+            },
+              React.createElement('svg', {
+                width: '16',
+                height: '16',
+                viewBox: '0 0 24 24',
+                fill: 'none',
+                stroke: 'currentColor',
+                strokeWidth: '2',
+                strokeLinecap: 'round',
+                strokeLinejoin: 'round'
+              },
+                React.createElement('path', { d: 'M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8' }),
+                React.createElement('path', { d: 'M21 3v5h-5' }),
+                React.createElement('path', { d: 'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16' }),
+                React.createElement('path', { d: 'M3 21v-5h5' })
+              )
+            ),
+
             React.createElement('button', {
               onClick: () => setShowOptionsMenu(!showOptionsMenu),
               style: {
@@ -991,8 +1251,8 @@ function Equipamentos() {
                 strokeLinecap: 'round',
                 strokeLinejoin: 'round'
               },
-                React.createElement('circle', { cx: '12', cy: '12', r: '3' }),
-                React.createElement('path', { d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z' })
+                React.createElement('line', { x1: '12', y1: '5', x2: '12', y2: '19' }),
+                React.createElement('line', { x1: '5', y1: '12', x2: '19', y2: '12' })
               )
             ),
             
@@ -1012,20 +1272,35 @@ function Equipamentos() {
             },
               React.createElement('button', {
                 onClick: () => {
+                  console.log('Botão adicionar clicado');
                   setShowOptionsMenu(false);
-                  // Aqui seria a lógica para adicionar equipamento
+                  setShowAddModal(true);
+                  console.log('showAddModal definido como true');
                 },
                 style: {
                   width: '100%',
-                  padding: '10px 16px',
+                  padding: '12px 16px',
                   border: 'none',
-                  background: 'none',
+                  background: 'linear-gradient(135deg, #7d26d9 0%, #9f3ffd 100%)',
                   textAlign: 'left',
                   fontSize: '12px',
-                  color: '#404040',
+                  color: 'white',
                   cursor: 'pointer',
-                  transition: 'background-color 0.2s',
-                  borderBottom: '1px solid rgba(125, 38, 217, 0.1)'
+                  transition: 'all 0.2s ease',
+                  borderBottom: '1px solid rgba(125, 38, 217, 0.1)',
+                  borderRadius: '6px 6px 0 0',
+                  fontWeight: '500',
+                  boxShadow: '0 2px 8px rgba(125, 38, 217, 0.2)'
+                },
+                onMouseEnter: (e) => {
+                  e.target.style.background = 'linear-gradient(135deg, #6b1bb8 0%, #8b2ce8 100%)';
+                  e.target.style.transform = 'translateY(-1px)';
+                  e.target.style.boxShadow = '0 4px 12px rgba(125, 38, 217, 0.3)';
+                },
+                onMouseLeave: (e) => {
+                  e.target.style.background = 'linear-gradient(135deg, #7d26d9 0%, #9f3ffd 100%)';
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = '0 2px 8px rgba(125, 38, 217, 0.2)';
                 }
               },
                 React.createElement('div', { 
@@ -1055,6 +1330,9 @@ function Equipamentos() {
                 onClick: () => {
                   setShowOptionsMenu(false);
                   // Aqui seria a lógica para importar equipamentos
+                  console.log('Importar equipamentos');
+                  // Aqui você pode implementar a lógica para abrir um seletor de arquivo
+                  alert('Abrir seletor de arquivo para importar equipamentos');
                 },
                 style: {
                   width: '100%',
@@ -1065,8 +1343,16 @@ function Equipamentos() {
                   fontSize: '12px',
                   color: '#404040',
                   cursor: 'pointer',
-                  transition: 'background-color 0.2s',
+                  transition: 'all 0.2s ease',
                   borderBottom: '1px solid rgba(125, 38, 217, 0.1)'
+                },
+                onMouseEnter: (e) => {
+                  e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                  e.target.style.color = '#3b82f6';
+                },
+                onMouseLeave: (e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.color = '#404040';
                 }
               },
                 React.createElement('div', { 
@@ -1097,6 +1383,9 @@ function Equipamentos() {
                 onClick: () => {
                   setShowOptionsMenu(false);
                   // Aqui seria a lógica para exportar equipamentos
+                  console.log('Exportar equipamentos');
+                  // Aqui você pode implementar a lógica para gerar e baixar um arquivo
+                  alert('Gerar e baixar arquivo com lista de equipamentos');
                 },
                 style: {
                   width: '100%',
@@ -1107,8 +1396,16 @@ function Equipamentos() {
                   fontSize: '12px',
                   color: '#404040',
                   cursor: 'pointer',
-                  transition: 'background-color 0.2s',
+                  transition: 'all 0.2s ease',
                   borderBottom: '1px solid rgba(125, 38, 217, 0.1)'
+                },
+                onMouseEnter: (e) => {
+                  e.target.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                  e.target.style.color = '#10b981';
+                },
+                onMouseLeave: (e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.color = '#404040';
                 }
               },
                 React.createElement('div', { 
@@ -1139,6 +1436,9 @@ function Equipamentos() {
                 onClick: () => {
                   setShowOptionsMenu(false);
                   // Aqui seria a lógica para configurações
+                  console.log('Configurações');
+                  // Aqui você pode implementar a lógica para abrir configurações
+                  alert('Abrir painel de configurações dos equipamentos');
                 },
                 style: {
                   width: '100%',
@@ -1149,7 +1449,16 @@ function Equipamentos() {
                   fontSize: '12px',
                   color: '#404040',
                   cursor: 'pointer',
-                  transition: 'background-color 0.2s'
+                  transition: 'all 0.2s ease',
+                  borderRadius: '0 0 6px 6px'
+                },
+                onMouseEnter: (e) => {
+                  e.target.style.backgroundColor = 'rgba(245, 158, 11, 0.1)';
+                  e.target.style.color = '#f59e0b';
+                },
+                onMouseLeave: (e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.color = '#404040';
                 }
               },
                 React.createElement('div', { 
@@ -1179,528 +1488,157 @@ function Equipamentos() {
           )
         ),
         
-        // Lista de equipamentos
-        React.createElement('div', { 
+        // Indicador de carregamento
+        loading && React.createElement('div', {
+          style: {
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '40px',
+            color: '#737373',
+            fontSize: '14px'
+          }
+        },
+          React.createElement('div', {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }
+          },
+            React.createElement('div', {
+              style: {
+                width: '20px',
+                height: '20px',
+                border: '2px solid #e5e5e5',
+                borderTop: '2px solid #7d26d9',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }
+            }),
+            'Carregando equipamentos...'
+          )
+        ),
+
+        // Mensagem de erro
+        error && React.createElement('div', {
+          style: {
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '40px',
+            color: '#ef4444',
+            fontSize: '14px',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            borderRadius: '8px',
+            margin: '20px 0'
+          }
+        },
+          React.createElement('div', {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }
+          },
+            React.createElement('svg', {
+              width: '20',
+              height: '20',
+              viewBox: '0 0 24 24',
+              fill: 'none',
+              stroke: 'currentColor',
+              strokeWidth: '2',
+              strokeLinecap: 'round',
+              strokeLinejoin: 'round'
+            },
+              React.createElement('circle', { cx: '12', cy: '12', r: '10' }),
+              React.createElement('line', { x1: '15', y1: '9', x2: '9', y2: '15' }),
+              React.createElement('line', { x1: '9', y1: '9', x2: '15', y2: '15' })
+            ),
+            error
+          )
+        ),
+
+        // Lista de equipamentos otimizada
+        !loading && !error && React.createElement('div', { 
           style: {
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
             gap: '12px'
           }
         },
-          filteredEquipamentos.map(equipamento =>
-            React.createElement('div', {
-              key: equipamento.id,
-              onClick: () => handleEquipamentoClick(equipamento),
-              style: {
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(10px)',
-                borderRadius: '8px',
-                padding: '12px',
-                cursor: 'pointer',
-                border: '1px solid rgba(125, 38, 217, 0.1)',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-              }
-            },
-              React.createElement('div', { 
+          (() => {
+            console.log('🎨 RENDER: Renderizando lista de equipamentos...');
+            console.log('🎨 RENDER: Equipamentos filtrados para renderizar:', filteredEquipamentos?.length || 0);
+            console.log('🎨 RENDER: Dados dos equipamentos:', filteredEquipamentos);
+            
+            if (!filteredEquipamentos || filteredEquipamentos.length === 0) {
+              console.log('🎨 RENDER: Nenhum equipamento para renderizar');
+              return React.createElement('div', {
                 style: {
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  marginBottom: '8px'
+                  gridColumn: '1 / -1',
+                  textAlign: 'center',
+                  padding: '40px',
+                  color: '#737373',
+                  fontSize: '14px'
                 }
-              },
-                React.createElement('div', { 
-                  style: {
-                    width: '32px',
-                    height: '32px',
-                    backgroundColor: 'rgba(125, 38, 217, 0.1)',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '14px'
-                  }
-                }, '🖥️'),
-                React.createElement('div', { 
-                  style: {
-                    flex: 1,
-                    minWidth: 0
-                  }
-                },
-                  React.createElement('h3', { 
-                    style: {
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      color: '#404040',
-                      marginBottom: '2px',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }
-                  }, equipamento.nome),
-                  React.createElement('p', { 
-                    style: {
-                      fontSize: '10px',
-                      color: '#737373',
-                      margin: 0
-                    }
-                  }, `${equipamento.fabricante} ${equipamento.modelo}`)
-                )
-              ),
-              React.createElement('div', { 
-                style: {
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '8px',
-                  fontSize: '10px',
-                  color: '#525252'
-                }
-              },
-                React.createElement('div', null,
-                  React.createElement('span', { 
-                    style: {
-                      fontWeight: '500',
-                      color: '#404040'
-                    }
-                  }, 'IP: '),
-                  equipamento.ipPrivado
-                ),
-                React.createElement('div', null,
-                  React.createElement('span', { 
-                    style: {
-                      fontWeight: '500',
-                      color: '#404040'
-                    }
-                  }, 'Local: '),
-                  equipamento.localidade
-                )
-              ),
-              React.createElement('div', { 
-                style: {
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginTop: '8px',
-                  paddingTop: '8px',
-                  borderTop: '1px solid rgba(125, 38, 217, 0.1)'
-                }
-              },
-                React.createElement('div', { 
-                  style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '9px',
-                    color: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    padding: '2px 6px',
-                    borderRadius: '4px'
-                  }
-                },
-                  React.createElement('div', { 
-                    style: {
-                      width: '4px',
-                      height: '4px',
-                      backgroundColor: '#10b981',
-                      borderRadius: '50%'
-                    }
-                  }),
-                  'Online'
-                ),
-                React.createElement('span', { 
-                  style: {
-                    fontSize: '9px',
-                    color: '#737373'
-                  }
-                }, `${equipamento.portas} portas`)
-              )
-            )
-          )
+              }, 'Nenhum equipamento encontrado');
+            }
+            
+            return filteredEquipamentos.map((equipamento, index) => {
+              console.log(`🎨 RENDER: Renderizando equipamento ${index + 1}:`, equipamento.nome);
+              return React.createElement(EquipamentoCard, {
+                key: equipamento.id,
+                equipamento: equipamento,
+                onClick: handleEquipamentoClick,
+                onEdit: handleEditEquipamento,
+                onDelete: handleDeleteEquipamento
+              });
+            });
+          })()
         )
       )
     ),
     
-    // Modal de detalhes
-    modalVisible && React.createElement('div', { 
-      style: {
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 2000,
-        padding: '20px'
-      },
-      onClick: closeModal
-    },
-      React.createElement('div', { 
-        style: {
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          maxWidth: '900px',
-          width: '100%',
-          maxHeight: '85vh',
-          overflow: 'auto',
-          position: 'relative',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
-        },
-        onClick: (e) => e.stopPropagation()
-      },
-        // Header do modal
-        React.createElement('div', { 
-          style: {
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '20px',
-            paddingBottom: '16px',
-            borderBottom: '1px solid #e5e5e5'
-          }
-        },
-          React.createElement('div', { 
-            style: {
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }
-          },
-            React.createElement('div', { 
-              style: {
-                width: '40px',
-                height: '40px',
-                backgroundColor: 'rgba(125, 38, 217, 0.1)',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '18px'
-              }
-            }, '🖥️'),
-            React.createElement('div', null,
-              React.createElement('h3', { 
-                style: {
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  color: '#404040',
-                  marginBottom: '2px'
-                }
-              }, selectedEquipamento?.nome),
-              React.createElement('p', { 
-                style: {
-                  fontSize: '12px',
-                  color: '#737373',
-                  margin: 0
-                }
-              }, `${selectedEquipamento?.fabricante} ${selectedEquipamento?.modelo}`)
-            )
-          ),
-          React.createElement('button', {
-            onClick: closeModal,
-            style: {
-              background: 'none',
-              border: 'none',
-              fontSize: '20px',
-              color: '#737373',
-              cursor: 'pointer',
-              padding: '4px',
-              borderRadius: '4px',
-              transition: 'background-color 0.2s'
-            }
-          }, '×')
-        ),
-        
-        // Conteúdo do modal
-        React.createElement('div', { 
-          style: {
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '16px'
-          }
-        },
-          // Coluna esquerda
-          React.createElement('div', { 
-            style: {
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px'
-            }
-          },
-            React.createElement('div', null,
-              React.createElement('label', { 
-                style: {
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: '#404040',
-                  display: 'block',
-                  marginBottom: '4px'
-                }
-              }, 'Serial/MAC'),
-              React.createElement('p', { 
-                style: {
-                  fontSize: '12px',
-                  color: '#525252',
-                  margin: 0,
-                  fontFamily: 'monospace'
-                }
-              }, `${selectedEquipamento?.serial} / ${selectedEquipamento?.mac}`)
-            ),
-            React.createElement('div', null,
-              React.createElement('label', { 
-                style: {
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: '#404040',
-                  display: 'block',
-                  marginBottom: '4px'
-                }
-              }, 'IP Público'),
-              React.createElement('p', { 
-                style: {
-                  fontSize: '12px',
-                  color: '#525252',
-                  margin: 0,
-                  fontFamily: 'monospace'
-                }
-              }, selectedEquipamento?.ipPublico)
-            ),
-            React.createElement('div', null,
-              React.createElement('label', { 
-                style: {
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: '#404040',
-                  display: 'block',
-                  marginBottom: '4px'
-                }
-              }, 'IP Privado'),
-              React.createElement('p', { 
-                style: {
-                  fontSize: '12px',
-                  color: '#525252',
-                  margin: 0,
-                  fontFamily: 'monospace'
-                }
-              }, selectedEquipamento?.ipPrivado)
-            ),
-            React.createElement('div', null,
-              React.createElement('label', { 
-                style: {
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: '#404040',
-                  display: 'block',
-                  marginBottom: '4px'
-                }
-              }, 'Localidade'),
-              React.createElement('p', { 
-                style: {
-                  fontSize: '12px',
-                  color: '#525252',
-                  margin: 0
-                }
-              }, selectedEquipamento?.localidade)
-            ),
-            React.createElement('div', null,
-              React.createElement('label', { 
-                style: {
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: '#404040',
-                  display: 'block',
-                  marginBottom: '4px'
-                }
-              }, 'Quantidade de Portas'),
-              React.createElement('p', { 
-                style: {
-                  fontSize: '12px',
-                  color: '#525252',
-                  margin: 0
-                }
-              }, selectedEquipamento?.portas)
-            ),
-            React.createElement('div', null,
-              React.createElement('label', { 
-                style: {
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: '#404040',
-                  display: 'block',
-                  marginBottom: '4px'
-                }
-              }, 'Equipamento Anterior'),
-              React.createElement('p', { 
-                style: {
-                  fontSize: '12px',
-                  color: '#525252',
-                  margin: 0
-                }
-              }, selectedEquipamento?.equipamentoAnterior ? 
-                `${selectedEquipamento.equipamentoAnterior.nome} (${selectedEquipamento.equipamentoAnterior.ipPrivado})` : 
-                'Nenhum (Primeiro da sequência)')
-            )
-          ),
-          
-          // Coluna direita
-          React.createElement('div', { 
-            style: {
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px'
-            }
-          },
-            React.createElement('div', null,
-              React.createElement('label', { 
-                style: {
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: '#404040',
-                  display: 'block',
-                  marginBottom: '4px'
-                }
-              }, 'Alimentação'),
-              React.createElement('p', { 
-                style: {
-                  fontSize: '12px',
-                  color: '#525252',
-                  margin: 0
-                }
-              }, selectedEquipamento?.alimentacao)
-            ),
-            React.createElement('div', null,
-              React.createElement('label', { 
-                style: {
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: '#404040',
-                  display: 'block',
-                  marginBottom: '4px'
-                }
-              }, 'Data de Aquisição'),
-              React.createElement('p', { 
-                style: {
-                  fontSize: '12px',
-                  color: '#525252',
-                  margin: 0
-                }
-              }, new Date(selectedEquipamento?.dataAquisicao).toLocaleDateString('pt-BR'))
-            ),
-            React.createElement('div', null,
-              React.createElement('label', { 
-                style: {
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: '#404040',
-                  display: 'block',
-                  marginBottom: '4px'
-                }
-              }, 'Tempo de Garantia'),
-              React.createElement('p', { 
-                style: {
-                  fontSize: '12px',
-                  color: '#525252',
-                  margin: 0
-                }
-              }, selectedEquipamento?.garantia)
-            ),
-            React.createElement('div', null,
-              React.createElement('label', { 
-                style: {
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: '#404040',
-                  display: 'block',
-                  marginBottom: '4px'
-                }
-              }, 'Versão de Firmware'),
-              React.createElement('p', { 
-                style: {
-                  fontSize: '12px',
-                  color: '#525252',
-                  margin: 0,
-                  fontFamily: 'monospace'
-                }
-              }, selectedEquipamento?.firmware)
-            ),
-            React.createElement('div', null,
-              React.createElement('label', { 
-                style: {
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: '#404040',
-                  display: 'block',
-                  marginBottom: '4px'
-                }
-              }, 'Equipamento Próximo'),
-              React.createElement('p', { 
-                style: {
-                  fontSize: '12px',
-                  color: '#525252',
-                  margin: 0
-                }
-              }, selectedEquipamento?.equipamentoProximo ? 
-                `${selectedEquipamento.equipamentoProximo.nome} (${selectedEquipamento.equipamentoProximo.ipPrivado})` : 
-                'Nenhum (Último da sequência)')
-            )
-          )
-        ),
-        
-        // Foto do equipamento
-        React.createElement('div', { 
-          style: {
-            marginTop: '20px',
-            paddingTop: '16px',
-            borderTop: '1px solid #e5e5e5'
-          }
-        },
-          React.createElement('label', { 
-            style: {
-              fontSize: '11px',
-              fontWeight: 'bold',
-              color: '#404040',
-              display: 'block',
-              marginBottom: '8px'
-            }
-          }, 'Foto do Equipamento'),
-          React.createElement('div', { 
-            style: {
-              width: '100%',
-              height: '120px',
-              backgroundColor: '#f5f5f5',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '2px dashed #d4d4d4'
-            }
-          },
-            React.createElement('div', { 
-              style: {
-                textAlign: 'center',
-                color: '#737373'
-              }
+    // Modal de detalhes otimizado
+    React.createElement(EquipamentoModal, {
+      equipamento: selectedEquipamento,
+      isVisible: modalVisible,
+      onClose: closeModal,
+      onEdit: handleEditEquipamento,
+      onDelete: handleDeleteEquipamento
+    }),
+    
+    // Modal de adição de equipamento
+          React.createElement(ModalAdicionarEquipamento, {
+            isVisible: showAddModal,
+            onClose: () => {
+              console.log('Fechando modal');
+              setShowAddModal(false);
             },
-              React.createElement('div', { 
-                style: {
-                  fontSize: '24px',
-                  marginBottom: '8px'
-                }
-              }, '📷'),
-              React.createElement('p', { 
-                style: {
-                  fontSize: '11px',
-                  margin: 0
-                }
-              }, 'Foto será carregada do Firebase Storage')
-            )
+            onSave: handleSaveEquipamento
+          }),
+          React.createElement(ModalEditarEquipamento, {
+            isVisible: showEditModal,
+            equipamento: equipamentoParaEditar,
+            onClose: () => {
+              console.log('Fechando modal de edição');
+              setShowEditModal(false);
+              setEquipamentoParaEditar(null);
+            },
+            onSave: handleSaveEditEquipamento
+          }),
+          
+          // Sistema de notificações
+          notifications.map(notification => 
+            React.createElement(Notification, {
+              key: notification.id,
+              message: notification.message,
+              type: notification.type,
+              duration: notification.duration,
+              onClose: () => removeNotification(notification.id)
+            })
           )
-        )
-      )
-    )
   );
 }
 

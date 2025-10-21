@@ -1,5 +1,23 @@
 import React from 'react';
-import { getStatusColor, getStatusText } from '../data/mockData';
+
+// Funções utilitárias locais
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'online': return '#10b981';
+    case 'atencao': return '#f59e0b';
+    case 'offline': return '#ef4444';
+    default: return '#6b7280';
+  }
+};
+
+const getStatusText = (status) => {
+  switch (status) {
+    case 'online': return 'Online';
+    case 'atencao': return 'Atenção';
+    case 'offline': return 'Offline';
+    default: return 'Desconhecido';
+  }
+};
 
 function ModalDetalhesEquipamento({ equipamento, onClose }) {
   if (!equipamento) return null;

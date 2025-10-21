@@ -6,6 +6,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Home from './components/Home';
 import Equipamentos from './components/Equipamentos';
+import Pops from './components/Pops';
 import TopologiaRede from './components/TopologiaRede';
 import TesteConexao from './components/TesteConexao';
 import Backups from './components/Backups';
@@ -21,6 +22,7 @@ function AppContent() {
           React.createElement(Route, { path: '/register', element: React.createElement(Register) }),
           React.createElement(Route, { path: '/home', element: React.createElement(Home) }),
           React.createElement(Route, { path: '/equipamentos', element: React.createElement(Equipamentos) }),
+          React.createElement(Route, { path: '/pops', element: React.createElement(Pops) }),
           React.createElement(Route, { path: '/topologia', element: React.createElement(TopologiaRede) }),
           React.createElement(Route, { path: '/teste-conexao', element: React.createElement(TesteConexao) }),
           React.createElement(Route, { path: '/backups', element: React.createElement(Backups) }),

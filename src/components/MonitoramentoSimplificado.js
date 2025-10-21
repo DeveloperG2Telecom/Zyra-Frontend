@@ -1,7 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import Layout from './shared/Layout';
 import ModalDetalhesEquipamento from './ModalDetalhesEquipamento';
-import { equipamentosCompletos, getStatusColor, getStatusText, getMetricaColor } from '../data/mockData';
+import api from '../services/api';
+
+// Funções utilitárias locais
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'online': return '#10b981';
+    case 'atencao': return '#f59e0b';
+    case 'offline': return '#ef4444';
+    default: return '#6b7280';
+  }
+};
+
+const getStatusText = (status) => {
+  switch (status) {
+    case 'online': return 'Online';
+    case 'atencao': return 'Atenção';
+    case 'offline': return 'Offline';
+    default: return 'Desconhecido';
+  }
+};
+
+const getMetricaColor = (valor, tipo) => {
+  switch (tipo) {
+    case 'latencia':
+      if (valor < 20) return '#10b981';
+      if (valor < 50) return '#f59e0b';
+      return '#ef4444';
+    case 'cpu':
+      if (valor < 50) return '#10b981';
+      if (valor < 80) return '#f59e0b';
+      return '#ef4444';
+    case 'memoria':
+      if (valor < 60) return '#10b981';
+      if (valor < 85) return '#f59e0b';
+      return '#ef4444';
+    case 'temperatura':
+      if (valor < 50) return '#10b981';
+      if (valor < 70) return '#f59e0b';
+      return '#ef4444';
+    default: return '#6b7280';
+  }
+};
 
 function MonitoramentoSimplificado() {
   const [equipamentoSelecionado, setEquipamentoSelecionado] = useState(null);
@@ -10,13 +51,33 @@ function MonitoramentoSimplificado() {
   const [filtroTipo, setFiltroTipo] = useState('todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [dadosMonitoramento, setDadosMonitoramento] = useState({});
+  const [equipamentos, setEquipamentos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Carregar equipamentos da API
+  useEffect(() => {
+    const loadEquipamentos = async () => {
+      try {
+        setLoading(true);
+        const data = await api.getEquipamentos();
+        setEquipamentos(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEquipamentos();
+  }, []);
 
   // Simular atualização periódica dos dados
   useEffect(() => {
     const interval = setInterval(() => {
       setDadosMonitoramento(prev => {
         const novosDados = {};
-        equipamentosCompletos.forEach(equipamento => {
+        equipamentos.forEach(equipamento => {
           if (equipamento.status !== 'offline') {
             novosDados[equipamento.id] = {
               latencia: Math.floor(Math.random() * 30) + 5,
@@ -32,20 +93,20 @@ function MonitoramentoSimplificado() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [equipamentos]);
 
-  const equipamentosFiltrados = equipamentosCompletos.filter(equipamento => {
+  const equipamentosFiltrados = equipamentos.filter(equipamento => {
     const matchesStatus = filtroStatus === 'todos' || equipamento.status === filtroStatus;
-    const matchesTipo = filtroTipo === 'todos' || equipamento.tipo.toLowerCase() === filtroTipo.toLowerCase();
+    const matchesTipo = filtroTipo === 'todos' || equipamento.modelo.toLowerCase().includes(filtroTipo.toLowerCase());
     const matchesSearch = searchTerm === '' || 
       equipamento.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
       equipamento.ipPrivado.includes(searchTerm) ||
-      equipamento.localidade.toLowerCase().includes(searchTerm.toLowerCase());
+      (equipamento.localidade && equipamento.localidade.endereco && equipamento.localidade.endereco.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesStatus && matchesTipo && matchesSearch;
   });
 
   // Obter tipos únicos de equipamentos para os filtros
-  const tiposEquipamentos = [...new Set(equipamentosCompletos.map(eq => eq.tipo))].sort();
+  const tiposEquipamentos = [...new Set(equipamentos.map(eq => eq.modelo))].sort();
 
   const handleEquipamentoClick = (equipamento) => {
     setEquipamentoSelecionado(equipamento);
@@ -67,6 +128,35 @@ function MonitoramentoSimplificado() {
       ultimoPing: equipamento.ultimoPing
     };
   };
+
+  // Estados de loading e error
+  if (loading) {
+    return React.createElement(Layout, { activeTab: 'monitoramento' },
+      React.createElement('div', {
+        style: {
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '200px',
+          color: 'white'
+        }
+      }, 'Carregando equipamentos...')
+    );
+  }
+
+  if (error) {
+    return React.createElement(Layout, { activeTab: 'monitoramento' },
+      React.createElement('div', {
+        style: {
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '200px',
+          color: '#ef4444'
+        }
+      }, `Erro ao carregar equipamentos: ${error}`)
+    );
+  }
 
   return React.createElement(Layout, { activeTab: 'monitoramento' },
     // Título e estatísticas
