@@ -8,7 +8,11 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
     serialMac: '',
     ipPrivado: '',
     ipPublico: '',
-    localidade: { lat: '', lng: '', endereco: '' },
+    localidade: {
+      lat: '',
+      lng: '',
+      endereco: ''
+    },
     quantidadePortas: '',
     alimentacao: '',
     dataAquisicao: '',
@@ -24,6 +28,7 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
     fotoEquipamento: '',
     observacoes: ''
   });
+
   const [funcaoInput, setFuncaoInput] = useState('');
 
   // Preencher formulário quando equipamento mudar
@@ -59,10 +64,6 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
     }
   }, [equipamento]);
 
-  if (!isVisible || !equipamento) {
-    return null;
-  }
-
   const handleInputChange = (field, value) => {
     if (field.includes('.')) {
       const [parent, child] = field.split('.');
@@ -81,9 +82,8 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
     }
   };
 
-  const handleAddFuncao = (e) => {
-    e.preventDefault();
-    if (funcaoInput.trim() && !formData.funcoes.includes(funcaoInput.trim())) {
+  const handleAddFuncao = () => {
+    if (funcaoInput.trim()) {
       setFormData(prev => ({
         ...prev,
         funcoes: [...prev.funcoes, funcaoInput.trim()]
@@ -92,27 +92,34 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
     }
   };
 
-  const handleRemoveFuncao = (funcaoToRemove) => {
+  const handleRemoveFuncao = (index) => {
     setFormData(prev => ({
       ...prev,
-      funcoes: prev.funcoes.filter(f => f !== funcaoToRemove)
+      funcoes: prev.funcoes.filter((_, i) => i !== index)
     }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Formulário de edição submetido!', formData);
+    console.log('🔍 MODAL: Formulário de edição submetido!', formData);
+    console.log('🔍 MODAL: Função onSave:', onSave);
+    console.log('🔍 MODAL: Dados completos do formData:', JSON.stringify(formData, null, 2));
     onSave(formData);
   };
 
   const handleClose = () => {
     setFormData({
       nome: '',
+      tipo: '',
       modelo: '',
       serialMac: '',
       ipPrivado: '',
       ipPublico: '',
-      localidade: { lat: '', lng: '', endereco: '' },
+      localidade: {
+        lat: '',
+        lng: '',
+        endereco: ''
+      },
       quantidadePortas: '',
       alimentacao: '',
       dataAquisicao: '',
@@ -132,10 +139,17 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
     onClose();
   };
 
-  return React.createElement('div', {
+  if (!isVisible || !equipamento) {
+    console.log('Modal não está visível ou equipamento não fornecido');
+    return null;
+  }
+  
+  console.log('Modal está visível, renderizando...');
+
+  return React.createElement('div', { 
     style: {
       position: 'fixed',
-      top: 0,
+      top: '60px', // Abaixo do cabeçalho
       left: 0,
       right: 0,
       bottom: 0,
@@ -143,117 +157,147 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1000,
+      zIndex: 2000,
       padding: '20px'
-    }
-  },
-    React.createElement('div', {
-      style: {
-        backgroundColor: '#1a1a1a',
-        borderRadius: '12px',
-        width: '100%',
-        maxWidth: '1200px',
-        maxHeight: '90vh',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column'
-      }
     },
-      // Header
-      React.createElement('div', {
+    onClick: handleClose
+  },
+    React.createElement('div', { 
+      style: {
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        padding: '24px',
+        maxWidth: '1000px',
+        width: '100%',
+        maxHeight: 'calc(100vh - 100px)',
+        overflow: 'auto',
+        position: 'relative',
+        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+      },
+      onClick: (e) => e.stopPropagation()
+    },
+      // Header do modal
+      React.createElement('div', { 
         style: {
-          padding: '20px',
-          borderBottom: '1px solid #333',
           display: 'flex',
+          alignItems: 'center',
           justifyContent: 'space-between',
-          alignItems: 'center'
+          marginBottom: '24px',
+          paddingBottom: '16px',
+          borderBottom: '1px solid #e5e5e5'
         }
       },
-        React.createElement('h2', {
+        React.createElement('div', { 
           style: {
-            color: 'white',
-            margin: 0,
-            fontSize: '24px',
-            fontWeight: '600'
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
           }
-        }, 'Editar Equipamento'),
+        },
+          React.createElement('div', { 
+            style: {
+              width: '40px',
+              height: '40px',
+              backgroundColor: 'rgba(125, 38, 217, 0.1)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px'
+            }
+          }, '✏️'),
+          React.createElement('div', null,
+            React.createElement('h3', { 
+              style: {
+                fontSize: '18px',
+                fontWeight: 'bold',
+                color: '#404040',
+                marginBottom: '2px'
+              }
+            }, 'Editar Equipamento'),
+            React.createElement('p', { 
+              style: {
+                fontSize: '12px',
+                color: '#737373',
+                margin: 0
+              }
+            }, 'Atualize os dados do equipamento')
+          )
+        ),
         React.createElement('button', {
           onClick: handleClose,
           style: {
-            background: 'none',
-            border: 'none',
-            color: '#666',
-            fontSize: '24px',
-            cursor: 'pointer',
-            padding: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '32px',
+            height: '32px',
+            backgroundColor: 'rgba(115, 115, 115, 0.1)',
+            border: '1px solid rgba(115, 115, 115, 0.2)',
             borderRadius: '6px',
-            transition: 'all 0.2s'
+            color: '#737373',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            fontSize: '16px',
+            fontWeight: 'bold'
           },
           onMouseEnter: (e) => {
-            e.target.style.backgroundColor = '#333';
-            e.target.style.color = 'white';
+            e.target.style.backgroundColor = 'rgba(115, 115, 115, 0.2)';
+            e.target.style.color = '#404040';
           },
           onMouseLeave: (e) => {
-            e.target.style.backgroundColor = 'transparent';
-            e.target.style.color = '#666';
+            e.target.style.backgroundColor = 'rgba(115, 115, 115, 0.1)';
+            e.target.style.color = '#737373';
           }
         }, '×')
       ),
-
-      // Form
+      
+      // Formulário
       React.createElement('form', {
         onSubmit: handleSubmit,
         style: {
-          padding: '20px',
-          overflowY: 'auto',
-          flex: 1,
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: '20px'
         }
       },
-        // Coluna Esquerda
-        React.createElement('div', {
+        // Coluna esquerda
+        React.createElement('div', { 
           style: {
             display: 'flex',
             flexDirection: 'column',
             gap: '16px'
           }
         },
-          // Nome do Equipamento
+          // Nome
           React.createElement('div', null,
-            React.createElement('label', {
+            React.createElement('label', { 
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
             }, 'Nome do Equipamento *'),
             React.createElement('input', {
               type: 'text',
               value: formData.nome,
               onChange: (e) => handleInputChange('nome', e.target.value),
-              placeholder: 'Ex: Roteador Principal',
-              required: true,
+              placeholder: 'Ex: Router Principal - Matriz',
               style: {
                 width: '100%',
-                padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
                 outline: 'none',
-                transition: 'border-color 0.2s'
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
               },
-              onFocus: (e) => {
-                e.target.style.borderColor = '#3b82f6';
-              },
-              onBlur: (e) => {
-                e.target.style.borderColor = '#444';
-              }
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4',
+              required: true
             })
           ),
 
@@ -261,34 +305,29 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
           React.createElement('div', null,
             React.createElement('label', {
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
             }, 'Tipo do Equipamento *'),
             React.createElement('select', {
               value: formData.tipo,
               onChange: (e) => handleInputChange('tipo', e.target.value),
-              required: true,
               style: {
                 width: '100%',
-                padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
                 outline: 'none',
-                transition: 'border-color 0.2s'
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
               },
-              onFocus: (e) => {
-                e.target.style.borderColor = '#3b82f6';
-              },
-              onBlur: (e) => {
-                e.target.style.borderColor = '#444';
-              }
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4',
+              required: true
             },
               React.createElement('option', { value: '' }, 'Selecione o tipo...'),
               React.createElement('option', { value: 'MIKROTIK' }, 'MIKROTIK'),
@@ -301,75 +340,78 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
               React.createElement('option', { value: 'OUTROS' }, 'OUTROS')
             )
           ),
-
+          
           // Modelo
           React.createElement('div', null,
-            React.createElement('label', {
+            React.createElement('label', { 
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
             }, 'Modelo'),
             React.createElement('input', {
               type: 'text',
               value: formData.modelo,
               onChange: (e) => handleInputChange('modelo', e.target.value),
-              placeholder: 'Ex: TP-Link Archer C7',
+              placeholder: 'Ex: RB4011iGS+RM',
               style: {
                 width: '100%',
-                padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
                 outline: 'none',
-                transition: 'border-color 0.2s'
-              }
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
             })
           ),
 
           // Serial/MAC
           React.createElement('div', null,
-            React.createElement('label', {
+            React.createElement('label', { 
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
             }, 'Serial/MAC'),
             React.createElement('input', {
               type: 'text',
               value: formData.serialMac,
               onChange: (e) => handleInputChange('serialMac', e.target.value),
-              placeholder: 'Ex: 00:11:22:33:44:55',
+              placeholder: 'Ex: 1234567890',
               style: {
                 width: '100%',
-                padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none'
-              }
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
             })
           ),
 
           // IP Privado
           React.createElement('div', null,
-            React.createElement('label', {
+            React.createElement('label', { 
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
             }, 'IP Privado'),
             React.createElement('input', {
@@ -379,192 +421,222 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
               placeholder: 'Ex: 192.168.1.1',
               style: {
                 width: '100%',
-                padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none'
-              }
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
             })
           ),
 
           // IP Público
           React.createElement('div', null,
-            React.createElement('label', {
+            React.createElement('label', { 
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
             }, 'IP Público'),
             React.createElement('input', {
               type: 'text',
               value: formData.ipPublico,
               onChange: (e) => handleInputChange('ipPublico', e.target.value),
-              placeholder: 'Ex: 200.160.2.1',
+              placeholder: 'Ex: 200.123.45.67',
               style: {
                 width: '100%',
-                padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none'
-              }
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
             })
           ),
 
-          // Localização
+          // Localização - Endereço
           React.createElement('div', null,
-            React.createElement('label', {
+            React.createElement('label', { 
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
-            }, 'Localização'),
-            React.createElement('div', {
-              style: {
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '8px',
-                marginBottom: '8px'
-              }
-            },
-              React.createElement('input', {
-                type: 'number',
-                value: formData.localidade.lat,
-                onChange: (e) => handleInputChange('localidade.lat', e.target.value),
-                placeholder: 'Latitude',
-                step: '0.000001',
-                style: {
-                  padding: '12px',
-                  backgroundColor: '#2a2a2a',
-                  border: '1px solid #444',
-                  borderRadius: '8px',
-                  color: 'white',
-                  fontSize: '14px',
-                  outline: 'none'
-                }
-              }),
-              React.createElement('input', {
-                type: 'number',
-                value: formData.localidade.lng,
-                onChange: (e) => handleInputChange('localidade.lng', e.target.value),
-                placeholder: 'Longitude',
-                step: '0.000001',
-                style: {
-                  padding: '12px',
-                  backgroundColor: '#2a2a2a',
-                  border: '1px solid #444',
-                  borderRadius: '8px',
-                  color: 'white',
-                  fontSize: '14px',
-                  outline: 'none'
-                }
-              })
-            ),
+            }, 'Endereço'),
             React.createElement('input', {
               type: 'text',
               value: formData.localidade.endereco,
               onChange: (e) => handleInputChange('localidade.endereco', e.target.value),
-              placeholder: 'Endereço completo',
+              placeholder: 'Ex: Rua das Flores, 123 - Centro',
               style: {
                 width: '100%',
-                padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none'
-              }
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
             })
-          )
-        ),
+          ),
 
-        // Coluna Direita
-        React.createElement('div', {
-          style: {
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px'
-          }
-        },
+          // Coordenadas
+          React.createElement('div', { 
+            style: {
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '12px'
+            }
+          },
+            React.createElement('div', null,
+              React.createElement('label', { 
+                style: {
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#404040',
+                  display: 'block',
+                  marginBottom: '6px'
+                }
+              }, 'Latitude'),
+              React.createElement('input', {
+                type: 'number',
+                step: 'any',
+                value: formData.localidade.lat,
+                onChange: (e) => handleInputChange('localidade.lat', e.target.value),
+                placeholder: 'Ex: -23.5505',
+                style: {
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '2px solid #d4d4d4',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  backgroundColor: 'white'
+                },
+                onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+                onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
+              })
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { 
+                style: {
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#404040',
+                  display: 'block',
+                  marginBottom: '6px'
+                }
+              }, 'Longitude'),
+              React.createElement('input', {
+                type: 'number',
+                step: 'any',
+                value: formData.localidade.lng,
+                onChange: (e) => handleInputChange('localidade.lng', e.target.value),
+                placeholder: 'Ex: -46.6333',
+                style: {
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '2px solid #d4d4d4',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  backgroundColor: 'white'
+                },
+                onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+                onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
+              })
+            )
+          ),
+
           // Quantidade de Portas
           React.createElement('div', null,
-            React.createElement('label', {
+            React.createElement('label', { 
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
             }, 'Quantidade de Portas'),
             React.createElement('input', {
-              type: 'text',
+              type: 'number',
               value: formData.quantidadePortas,
               onChange: (e) => handleInputChange('quantidadePortas', e.target.value),
-              placeholder: 'Ex: 8',
+              placeholder: 'Ex: 24',
               style: {
                 width: '100%',
-                padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none'
-              }
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
             })
           ),
 
           // Alimentação
           React.createElement('div', null,
-            React.createElement('label', {
+            React.createElement('label', { 
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
             }, 'Alimentação'),
             React.createElement('input', {
               type: 'text',
               value: formData.alimentacao,
               onChange: (e) => handleInputChange('alimentacao', e.target.value),
-              placeholder: 'Ex: 12V 2A',
+              placeholder: 'Ex: 24V DC, 2A',
               style: {
                 width: '100%',
-                padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none'
-              }
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
             })
           ),
 
           // Data de Aquisição
           React.createElement('div', null,
-            React.createElement('label', {
+            React.createElement('label', { 
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
             }, 'Data de Aquisição'),
             React.createElement('input', {
@@ -573,84 +645,230 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
               onChange: (e) => handleInputChange('dataAquisicao', e.target.value),
               style: {
                 width: '100%',
-                padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none'
-              }
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
             })
           ),
 
           // Tempo de Garantia
           React.createElement('div', null,
-            React.createElement('label', {
+            React.createElement('label', { 
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
             }, 'Tempo de Garantia'),
             React.createElement('input', {
               type: 'text',
               value: formData.tempoGarantia,
               onChange: (e) => handleInputChange('tempoGarantia', e.target.value),
-              placeholder: 'Ex: 2 anos',
+              placeholder: 'Ex: 24 meses',
               style: {
                 width: '100%',
-                padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none'
-              }
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
             })
           ),
 
-          // Versão do Firmware
+          // Versão de Firmware
           React.createElement('div', null,
-            React.createElement('label', {
+            React.createElement('label', { 
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
-            }, 'Versão do Firmware'),
+            }, 'Versão de Firmware'),
             React.createElement('input', {
               type: 'text',
               value: formData.versaoFirmware,
               onChange: (e) => handleInputChange('versaoFirmware', e.target.value),
-              placeholder: 'Ex: v1.2.3',
+              placeholder: 'Ex: 7.11.2',
               style: {
                 width: '100%',
-                padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none'
-              }
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
             })
           ),
 
+          // Equipamento Anterior
+          React.createElement('div', null,
+            React.createElement('label', { 
+              style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
+                display: 'block',
+                marginBottom: '6px'
+              }
+            }, 'Equipamento Anterior'),
+            React.createElement('input', {
+              type: 'text',
+              value: formData.equipamentoAnterior,
+              onChange: (e) => handleInputChange('equipamentoAnterior', e.target.value),
+              placeholder: 'Ex: Router Antigo - Desativado',
+              style: {
+                width: '100%',
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
+            })
+          ),
+
+          // Equipamento Posterior
+          React.createElement('div', null,
+            React.createElement('label', { 
+              style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
+                display: 'block',
+                marginBottom: '6px'
+              }
+            }, 'Equipamento Posterior'),
+            React.createElement('input', {
+              type: 'text',
+              value: formData.equipamentoPosterior,
+              onChange: (e) => handleInputChange('equipamentoPosterior', e.target.value),
+              placeholder: 'Ex: Router Futuro - Planejado',
+              style: {
+                width: '100%',
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
+            })
+          ),
+
+          // Foto do Equipamento
+          React.createElement('div', null,
+            React.createElement('label', { 
+              style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
+                display: 'block',
+                marginBottom: '6px'
+              }
+            }, 'Foto do Equipamento'),
+            React.createElement('input', {
+              type: 'file',
+              accept: 'image/*',
+              onChange: (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  // Aqui você pode implementar upload para Firebase Storage
+                  console.log('Arquivo selecionado:', file);
+                }
+              },
+              style: {
+                width: '100%',
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
+            })
+          ),
+
+          // Observações
+          React.createElement('div', null,
+            React.createElement('label', { 
+              style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
+                display: 'block',
+                marginBottom: '6px'
+              }
+            }, 'Observações'),
+            React.createElement('textarea', {
+              value: formData.observacoes,
+              onChange: (e) => handleInputChange('observacoes', e.target.value),
+              placeholder: 'Observações técnicas importantes...',
+              rows: 4,
+              style: {
+                width: '100%',
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white',
+                resize: 'vertical',
+                fontFamily: 'inherit'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
+            })
+          )
+        ),
+        
+        // Coluna direita
+        React.createElement('div', { 
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }
+        },
           // Modo de Acesso
           React.createElement('div', null,
-            React.createElement('label', {
+            React.createElement('label', { 
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
             }, 'Modo de Acesso'),
             React.createElement('select', {
@@ -658,36 +876,39 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
               onChange: (e) => handleInputChange('modoAcesso', e.target.value),
               style: {
                 width: '100%',
-                padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none'
-              }
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
             },
               React.createElement('option', { value: '' }, 'Selecione o modo'),
               React.createElement('option', { value: 'SSH' }, 'SSH'),
               React.createElement('option', { value: 'Telnet' }, 'Telnet'),
               React.createElement('option', { value: 'Web Interface' }, 'Web Interface'),
-              React.createElement('option', { value: 'ETHERNET' }, 'ETHERNET'),
+              React.createElement('option', { value: 'Ethernet' }, 'Ethernet'),
+              React.createElement('option', { value: 'Winbox' }, 'Winbox'),
               React.createElement('option', { value: 'Outro' }, 'Outro')
             )
           ),
-
+          
           // Funções
           React.createElement('div', null,
-            React.createElement('label', {
+            React.createElement('label', { 
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
             }, 'Funções'),
-            React.createElement('div', {
+            React.createElement('div', { 
               style: {
                 display: 'flex',
                 gap: '8px',
@@ -698,88 +919,96 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
                 type: 'text',
                 value: funcaoInput,
                 onChange: (e) => setFuncaoInput(e.target.value),
-                placeholder: 'Adicionar função',
+                placeholder: 'Ex: Roteamento, Firewall',
                 style: {
                   flex: 1,
-                  padding: '12px',
-                  backgroundColor: '#2a2a2a',
-                  border: '1px solid #444',
-                  borderRadius: '8px',
-                  color: 'white',
-                  fontSize: '14px',
-                  outline: 'none'
+                  padding: '8px 10px',
+                  border: '2px solid #d4d4d4',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  backgroundColor: 'white'
+                },
+                onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+                onBlur: (e) => e.target.style.borderColor = '#d4d4d4',
+                onKeyPress: (e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddFuncao();
+                  }
                 }
               }),
               React.createElement('button', {
                 type: 'button',
                 onClick: handleAddFuncao,
                 style: {
-                  padding: '12px 16px',
-                  backgroundColor: '#3b82f6',
-                  border: 'none',
-                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  backgroundColor: '#7d26d9',
                   color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
                   cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500',
                   transition: 'background-color 0.2s'
                 },
-                onMouseEnter: (e) => {
-                  e.target.style.backgroundColor = '#2563eb';
-                },
-                onMouseLeave: (e) => {
-                  e.target.style.backgroundColor = '#3b82f6';
-                }
+                onMouseEnter: (e) => e.target.style.backgroundColor = '#6b1fb8',
+                onMouseLeave: (e) => e.target.style.backgroundColor = '#7d26d9'
               }, 'Adicionar')
             ),
-            formData.funcoes.length > 0 && React.createElement('div', {
+            React.createElement('div', { 
               style: {
                 display: 'flex',
                 flexWrap: 'wrap',
-                gap: '8px'
+                gap: '6px'
               }
             },
-              formData.funcoes.map((funcao, index) => React.createElement('span', {
-                key: index,
-                style: {
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '6px 12px',
-                  backgroundColor: '#3b82f6',
-                  borderRadius: '20px',
-                  color: 'white',
-                  fontSize: '12px',
-                  fontWeight: '500'
-                }
-              },
-                funcao,
-                React.createElement('button', {
-                  type: 'button',
-                  onClick: () => handleRemoveFuncao(funcao),
+              formData.funcoes.map((funcao, index) => 
+                React.createElement('span', {
+                  key: index,
                   style: {
-                    background: 'none',
-                    border: 'none',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    padding: '0',
-                    marginLeft: '4px'
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '4px 8px',
+                    backgroundColor: '#f3f4f6',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    color: '#374151'
                   }
-                }, '×')
-              ))
+                },
+                  React.createElement('span', null, funcao),
+                  React.createElement('button', {
+                    type: 'button',
+                    onClick: () => handleRemoveFuncao(index),
+                    style: {
+                      background: 'none',
+                      border: 'none',
+                      color: '#6b7280',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      padding: '0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }
+                  }, '×')
+                )
+              )
             )
           ),
 
           // Status
           React.createElement('div', null,
-            React.createElement('label', {
+            React.createElement('label', { 
               style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
                 display: 'block',
-                color: 'white',
-                marginBottom: '8px',
-                fontSize: '14px',
-                fontWeight: '500'
+                marginBottom: '6px'
               }
             }, 'Status'),
             React.createElement('select', {
@@ -787,14 +1016,16 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
               onChange: (e) => handleInputChange('status', e.target.value),
               style: {
                 width: '100%',
-                padding: '12px',
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #444',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none'
-              }
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
             },
               React.createElement('option', { value: 'Ativo' }, 'Ativo'),
               React.createElement('option', { value: 'Em Manutenção' }, 'Em Manutenção'),
@@ -802,64 +1033,124 @@ const ModalEditarEquipamento = ({ isVisible, equipamento, onClose, onSave }) => 
               React.createElement('option', { value: 'Descartado' }, 'Descartado'),
               React.createElement('option', { value: 'Em Teste' }, 'Em Teste')
             )
-          )
-        ),
+          ),
 
-        // Botões de Ação
-        React.createElement('div', {
-          style: {
-            gridColumn: '1 / -1',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '12px',
-            paddingTop: '20px',
-            borderTop: '1px solid #333'
-          }
-        },
-          React.createElement('button', {
-            type: 'button',
-            onClick: handleClose,
-            style: {
-              padding: '12px 24px',
-              backgroundColor: 'transparent',
-              border: '1px solid #444',
-              borderRadius: '8px',
-              color: '#ccc',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.2s'
-            },
-            onMouseEnter: (e) => {
-              e.target.style.borderColor = '#666';
-              e.target.style.color = 'white';
-            },
-            onMouseLeave: (e) => {
-              e.target.style.borderColor = '#444';
-              e.target.style.color = '#ccc';
-            }
-          }, 'Cancelar'),
-          React.createElement('button', {
-            type: 'submit',
-            style: {
-              padding: '12px 24px',
-              backgroundColor: '#3b82f6',
-              border: 'none',
-              borderRadius: '8px',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'background-color 0.2s'
-            },
-            onMouseEnter: (e) => {
-              e.target.style.backgroundColor = '#2563eb';
-            },
-            onMouseLeave: (e) => {
-              e.target.style.backgroundColor = '#3b82f6';
-            }
-          }, 'Salvar Alterações')
+          // POP
+          React.createElement('div', null,
+            React.createElement('label', { 
+              style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
+                display: 'block',
+                marginBottom: '6px'
+              }
+            }, 'POP'),
+            React.createElement('input', {
+              type: 'text',
+              value: formData.pop,
+              onChange: (e) => handleInputChange('pop', e.target.value),
+              placeholder: 'Ex: POP Central',
+              style: {
+                width: '100%',
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
+            })
+          ),
+
+          // Rede Rural
+          React.createElement('div', null,
+            React.createElement('label', { 
+              style: {
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#404040',
+                display: 'block',
+                marginBottom: '6px'
+              }
+            }, 'Rede Rural'),
+            React.createElement('input', {
+              type: 'text',
+              value: formData.redeRural,
+              onChange: (e) => handleInputChange('redeRural', e.target.value),
+              placeholder: 'Ex: Rede Rural Norte',
+              style: {
+                width: '100%',
+                padding: '10px 12px',
+                border: '2px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '12px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                backgroundColor: 'white'
+              },
+              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
+              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
+            })
+          )
         )
+      ),
+
+      // Botões de ação
+      React.createElement('div', { 
+        style: {
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: '12px',
+          marginTop: '24px',
+          paddingTop: '16px',
+          borderTop: '1px solid #e5e5e5'
+        }
+      },
+        React.createElement('button', {
+          type: 'button',
+          onClick: handleClose,
+          style: {
+            padding: '10px 20px',
+            backgroundColor: 'transparent',
+            color: '#737373',
+            border: '2px solid #d4d4d4',
+            borderRadius: '6px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          },
+          onMouseEnter: (e) => {
+            e.target.style.backgroundColor = '#f5f5f5';
+            e.target.style.borderColor = '#a3a3a3';
+            e.target.style.color = '#404040';
+          },
+          onMouseLeave: (e) => {
+            e.target.style.backgroundColor = 'transparent';
+            e.target.style.borderColor = '#d4d4d4';
+            e.target.style.color = '#737373';
+          }
+        }, 'Cancelar'),
+        React.createElement('button', {
+          type: 'submit',
+          style: {
+            padding: '10px 20px',
+            backgroundColor: '#7d26d9',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s ease'
+          },
+          onMouseEnter: (e) => e.target.style.backgroundColor = '#6b1fb8',
+          onMouseLeave: (e) => e.target.style.backgroundColor = '#7d26d9'
+        }, 'Salvar Alterações')
       )
     )
   );

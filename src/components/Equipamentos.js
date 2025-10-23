@@ -187,6 +187,7 @@ function Equipamentos() {
       // Preparar dados conforme schema do backend (apenas nome obrigatório)
       const dadosParaSalvar = {
         nome: equipamentoData.nome.trim(),
+        tipo: equipamentoData.tipo.trim(),
         modelo: toNullIfEmpty(equipamentoData.modelo),
         serialMac: toNullIfEmpty(equipamentoData.serialMac),
         ipPublico: toNullIfEmpty(equipamentoData.ipPublico),
@@ -211,7 +212,8 @@ function Equipamentos() {
         redeRural: toNullIfEmpty(equipamentoData.redeRural)
       };
 
-      console.log('Dados do equipamento a ser salvo (formatados):', dadosParaSalvar);
+      console.log('🔍 EQUIPAMENTOS: Dados do equipamento a ser salvo (formatados):', dadosParaSalvar);
+      console.log('🔍 EQUIPAMENTOS: JSON stringify dos dados:', JSON.stringify(dadosParaSalvar, null, 2));
       
       const response = await createEquipamento(dadosParaSalvar);
       
@@ -263,6 +265,7 @@ function Equipamentos() {
 
       const dadosParaSalvar = {
         nome: equipamentoData.nome.trim(),
+        tipo: equipamentoData.tipo.trim(),
         modelo: toNullIfEmpty(equipamentoData.modelo),
         serialMac: toNullIfEmpty(equipamentoData.serialMac),
         ipPublico: toNullIfEmpty(equipamentoData.ipPublico),
@@ -1145,7 +1148,6 @@ function Equipamentos() {
                     method: 'GET',
                     headers: {
                       'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     },
                   });
                   console.log('🧪 TESTE: Status:', response.status);

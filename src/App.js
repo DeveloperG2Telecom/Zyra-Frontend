@@ -11,6 +11,8 @@ import TopologiaRede from './components/TopologiaRede';
 import TesteConexao from './components/TesteConexao';
 import Backups from './components/Backups';
 import MonitoramentoSimplificado from './components/MonitoramentoSimplificado';
+import Configuracoes from './components/Configuracoes';
+import TesteConfiguracoes from './components/TesteConfiguracoes';
 
 function AppContent() {
   const { loading } = useLoading();
@@ -26,7 +28,9 @@ function AppContent() {
           React.createElement(Route, { path: '/topologia', element: React.createElement(TopologiaRede) }),
           React.createElement(Route, { path: '/teste-conexao', element: React.createElement(TesteConexao) }),
           React.createElement(Route, { path: '/backups', element: React.createElement(Backups) }),
-          React.createElement(Route, { path: '/monitoramento', element: React.createElement(MonitoramentoSimplificado) })
+          React.createElement(Route, { path: '/monitoramento', element: React.createElement(MonitoramentoSimplificado) }),
+          React.createElement(Route, { path: '/configuracoes', element: React.createElement(Configuracoes) }),
+          React.createElement(Route, { path: '/teste-configuracoes', element: React.createElement(TesteConfiguracoes) })
         ),
     loading && React.createElement(UniversalLoading, { overlay: true })
   );

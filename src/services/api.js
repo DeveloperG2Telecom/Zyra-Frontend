@@ -61,7 +61,6 @@ class ApiService {
   // Método genérico para fazer requisições (otimizado)
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
-    const token = localStorage.getItem('token');
     
     // Verificar cache para GET requests
     if (!options.method || options.method === 'GET') {
@@ -73,7 +72,6 @@ class ApiService {
     const defaultOptions = {
       headers: {
         'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
         ...options.headers,
       },
     };
@@ -131,16 +129,13 @@ class ApiService {
     
     try {
       const url = `${this.baseURL}/equipamentos`;
-      const token = localStorage.getItem('token');
       
       console.log('🔍 API: URL:', url);
-      console.log('🔍 API: Token presente:', !!token);
       
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` }),
         },
       });
       
@@ -169,6 +164,9 @@ class ApiService {
   }
 
   async createEquipamento(equipamentoData) {
+    console.log('🔍 API: Dados sendo enviados para criar equipamento:', equipamentoData);
+    console.log('🔍 API: JSON stringify:', JSON.stringify(equipamentoData));
+    
     const result = await this.request('/equipamentos', {
       method: 'POST',
       body: JSON.stringify(equipamentoData),
@@ -185,7 +183,6 @@ class ApiService {
     
     try {
       const url = `${this.baseURL}/equipamentos/${id}`;
-      const token = localStorage.getItem('token');
       
       console.log('🔍 API: URL:', url);
       
@@ -193,7 +190,6 @@ class ApiService {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` }),
         },
         body: JSON.stringify(equipamentoData),
       });
@@ -222,7 +218,6 @@ class ApiService {
     
     try {
       const url = `${this.baseURL}/equipamentos/${id}`;
-      const token = localStorage.getItem('token');
       
       console.log('🔍 API: URL:', url);
       
@@ -230,7 +225,6 @@ class ApiService {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` }),
         },
       });
       
@@ -357,6 +351,61 @@ class ApiService {
 
   async getRedesRuraisByTecnologia(tecnologia) {
     return this.request(`/redes-rurais/tecnologia/${tecnologia}`);
+  }
+
+  // Métodos unificados para configurações
+  async getConfiguracao(endpoint) {
+    // Desabilitar cache para configurações para sempre buscar dados atualizados
+    const url = `${this.baseURL}/configuracoes/${endpoint}`;
+    console.log(`🔍 API: Buscando configuração sem cache:`, url);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log(`🔍 API: Resposta da configuração:`, data);
+    return data;
+  }
+
+  async getConfiguracaoById(endpoint, id) {
+    return this.request(`/configuracoes/${endpoint}/${id}`);
+  }
+
+  async createConfiguracao(endpoint, dados) {
+    return this.request(`/configuracoes/${endpoint}`, {
+      method: 'POST',
+      body: JSON.stringify(dados),
+    });
+  }
+
+  async updateConfiguracao(endpoint, id, dados) {
+    return this.request(`/configuracoes/${endpoint}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(dados),
+    });
+  }
+
+  async deleteConfiguracao(endpoint, id) {
+    return this.request(`/configuracoes/${endpoint}/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Métodos específicos para compatibilidade
+  async getTiposAcesso() {
+    return this.getConfiguracao('tipos-acesso');
+  }
+
+  async getFuncoes() {
+    return this.getConfiguracao('funcoes');
   }
 
   // Método para verificar saúde da API
