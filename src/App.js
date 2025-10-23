@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { LoadingProvider, useLoading } from './contexts/LoadingContext';
+import { CacheProvider } from './contexts/CacheContext';
 import UniversalLoading from './components/UniversalLoading';
 import Login from './components/Login';
 import Register from './components/Register';
@@ -38,8 +39,10 @@ function AppContent() {
 
 function App() {
   return React.createElement(LoadingProvider, null,
-    React.createElement(Router, null,
-      React.createElement(AppContent, null)
+    React.createElement(CacheProvider, null,
+      React.createElement(Router, null,
+        React.createElement(AppContent, null)
+      )
     )
   );
 }

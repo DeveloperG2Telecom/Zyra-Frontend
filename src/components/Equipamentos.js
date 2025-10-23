@@ -7,6 +7,7 @@ import ModalEditarEquipamento from './shared/ModalEditarEquipamento';
 import { useEquipamentos } from '../hooks/useEquipamentos';
 import { useDebounce } from '../hooks/useDebounce';
 import { useNotification } from '../hooks/useNotification';
+import { useCache } from '../contexts/CacheContext';
 import Notification from './shared/Notification';
 
 function Equipamentos() {
@@ -240,7 +241,8 @@ function Equipamentos() {
   };
 
   const handleSaveEditEquipamento = async (equipamentoData) => {
-    console.log('handleSaveEditEquipamento chamada com:', equipamentoData);
+    console.log('🔍 EQUIPAMENTOS: handleSaveEditEquipamento chamada com:', equipamentoData);
+    console.log('🔍 EQUIPAMENTOS: ID do equipamento para editar:', equipamentoParaEditar?.id);
     try {
       if (!equipamentoData.nome || equipamentoData.nome.trim() === '') {
         showError('Por favor, preencha o nome do equipamento.');
@@ -290,9 +292,11 @@ function Equipamentos() {
         redeRural: toNullIfEmpty(equipamentoData.redeRural)
       };
 
-      console.log('Dados do equipamento a ser atualizado (formatados):', dadosParaSalvar);
+      console.log('🔍 EQUIPAMENTOS: Dados do equipamento a ser atualizado (formatados):', dadosParaSalvar);
+      console.log('🔍 EQUIPAMENTOS: Chamando updateEquipamento...');
       
       const response = await updateEquipamento(equipamentoParaEditar.id, dadosParaSalvar);
+      console.log('🔍 EQUIPAMENTOS: Resposta do updateEquipamento:', response);
       
       if (response.success) {
         setShowEditModal(false);

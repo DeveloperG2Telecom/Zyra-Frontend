@@ -1,13 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import Layout from './shared/Layout';
 import ModalConfiguracao from './shared/ModalConfiguracao';
+import { useCache } from '../contexts/CacheContext';
 import api from '../services/api';
 
 const Configuracoes = () => {
+  const { 
+    loadTiposAcesso, 
+    loadPops, 
+    loadFuncoes, 
+    updateCacheData, 
+    addToCache, 
+    removeFromCache, 
+    updateCacheItem 
+  } = useCache();
+  
   const [activeTab, setActiveTab] = useState('tipos-acesso');
   const [showModal, setShowModal] = useState(false);
   const [itemEditando, setItemEditando] = useState(null);
   const [dados, setDados] = useState([]);
+  
+  // Garantir que dados é sempre um array
+  const dadosSeguros = Array.isArray(dados) ? dados : [];
   const [loading, setLoading] = useState(true);
   const [loadingSalvando, setLoadingSalvando] = useState(false);
   const [loadingRecarregando, setLoadingRecarregando] = useState(false);
@@ -55,52 +69,38 @@ const Configuracoes = () => {
 
   const currentConfig = configs[activeTab];
 
-  // Carregar dados da API
-  const carregarDados = async () => {
+  // Carregar dados usando cache inteligente
+  const carregarDados = async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
       console.log(`🔍 CONFIGURAÇÕES: Carregando ${currentConfig.title}...`);
-      console.log(`🔍 CONFIGURAÇÕES: Endpoint:`, currentConfig.endpoint);
-      console.log(`🔍 CONFIGURAÇÕES: URL completa:`, `/configuracoes/${currentConfig.endpoint}`);
-      console.log(`🔍 CONFIGURAÇÕES: Estado atual dos dados:`, dados);
       
-      // Limpar dados antigos imediatamente
-      setDados([]);
-      console.log(`🔍 CONFIGURAÇÕES: Dados antigos limpos`);
-      
-      // Aguardar mais tempo para garantir que o backend processou a edição completamente
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const response = await api.getConfiguracao(currentConfig.endpoint);
-      console.log(`🔍 CONFIGURAÇÕES: Resposta da API:`, response);
-      
-      if (response && response.success) {
-        console.log(`🔍 CONFIGURAÇÕES: Dados recebidos:`, response.data);
-        console.log(`🔍 CONFIGURAÇÕES: Quantidade de itens:`, response.data?.length || 0);
-        const novosDados = response.data || [];
-        console.log(`🔍 CONFIGURAÇÕES: Definindo novos dados:`, novosDados);
-        console.log(`🔍 CONFIGURAÇÕES: Dados atuais antes da atualização:`, dados);
-        
-        // Forçar limpeza completa do estado
-        setDados([]);
-        console.log(`🔍 CONFIGURAÇÕES: Estado limpo, aguardando...`);
-        
-        // Aguardar um pouco para garantir que o estado foi limpo
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Definir novos dados
-        setDados(novosDados);
-        console.log(`🔍 CONFIGURAÇÕES: Estado atualizado com novos dados:`, novosDados);
-        
-        // Aguardar para garantir que o React renderizou os dados
-        await new Promise(resolve => setTimeout(resolve, 200));
-        console.log(`🔍 CONFIGURAÇÕES: Interface renderizada com dados atualizados`);
-        
-      } else {
-        console.error(`🔍 CONFIGURAÇÕES: Erro na resposta:`, response);
-        setError(`Erro ao carregar ${currentConfig.title.toLowerCase()}`);
+      // Usar cache inteligente baseado na aba ativa
+      let data;
+      switch (activeTab) {
+        case 'tipos-acesso':
+          data = await loadTiposAcesso(forceRefresh);
+          break;
+        case 'pops':
+          data = await loadPops(forceRefresh);
+          break;
+        case 'funcoes':
+          data = await loadFuncoes(forceRefresh);
+          break;
+        default:
+          data = [];
       }
+      
+      console.log(`✅ CONFIGURAÇÕES: Dados carregados do cache:`, data);
+      console.log(`✅ CONFIGURAÇÕES: Tipo dos dados:`, typeof data);
+      console.log(`✅ CONFIGURAÇÕES: É array?`, Array.isArray(data));
+      
+      // Garantir que dados é sempre um array
+      const dadosArray = Array.isArray(data) ? data : [];
+      console.log(`✅ CONFIGURAÇÕES: Dados validados como array:`, dadosArray);
+      console.log(`✅ CONFIGURAÇÕES: Tamanho do array:`, dadosArray.length);
+      setDados(dadosArray);
     } catch (err) {
       console.error(`🔍 CONFIGURAÇÕES: Erro ao carregar ${currentConfig.title.toLowerCase()}:`, err);
       setError('Erro ao conectar com o servidor: ' + err.message);
@@ -150,27 +150,21 @@ const Configuracoes = () => {
       if (response && response.success) {
         console.log(`🔍 CONFIGURAÇÕES: Salvo com sucesso no banco!`);
         
+        // Atualizar cache em vez de recarregar tudo
+        if (itemEditando) {
+          // Edição - atualizar item no cache
+          updateCacheItem(activeTab, response.data);
+          setDados(prev => prev.map(item => item.id === response.data.id ? response.data : item));
+        } else {
+          // Criação - adicionar item ao cache
+          addToCache(activeTab, response.data);
+          setDados(prev => [...prev, response.data]);
+        }
+        
         // Fechar modal
         setShowModal(false);
         setItemEditando(null);
-        
-        // Desativar loading de salvamento
         setLoadingSalvando(false);
-        
-        // Ativar loading de recarregamento
-        setLoadingRecarregando(true);
-        console.log(`🔍 CONFIGURAÇÕES: Iniciando recarregamento de dados...`);
-        
-        // Aguardar mais tempo para garantir que o backend processou completamente
-        setTimeout(async () => {
-          console.log(`🔍 CONFIGURAÇÕES: Iniciando busca de dados atualizados...`);
-          await carregarDados();
-          console.log(`🔍 CONFIGURAÇÕES: Dados recarregados com sucesso!`);
-          
-          // Só desativar loading DEPOIS de buscar e renderizar os dados
-          setLoadingRecarregando(false);
-          console.log(`🔍 CONFIGURAÇÕES: Loading de recarregamento desativado - dados atualizados na tela`);
-        }, 1000); // Aumentado para 1000ms (1 segundo) para garantir processamento completo
         
       } else {
         console.error(`🔍 CONFIGURAÇÕES: Erro na resposta:`, response);
@@ -195,9 +189,10 @@ const Configuracoes = () => {
         console.log('🔍 CONFIGURAÇÕES: Resposta da API:', response);
         
         if (response.success) {
-          console.log('🔍 CONFIGURAÇÕES: Deletado com sucesso, recarregando lista...');
-          // Recarregar lista após deletar
-          await carregarDados();
+          console.log('🔍 CONFIGURAÇÕES: Deletado com sucesso, atualizando cache...');
+          // Atualizar cache em vez de recarregar tudo
+          removeFromCache(activeTab, id);
+          setDados(prev => prev.filter(item => item.id !== id));
         } else {
           console.error('🔍 CONFIGURAÇÕES: Erro na resposta:', response.error);
           alert('Erro ao deletar: ' + response.error);
@@ -452,7 +447,7 @@ const Configuracoes = () => {
             gap: '12px'
           }
         },
-          dados.length === 0 ? React.createElement('div', {
+          dadosSeguros.length === 0 ? React.createElement('div', {
             style: {
               textAlign: 'center',
               padding: '40px',
@@ -462,7 +457,7 @@ const Configuracoes = () => {
               borderRadius: '8px'
             }
           }, `Nenhum ${currentConfig.title.toLowerCase()} cadastrado. Clique em "Adicionar" para criar o primeiro.`) : null,
-          dados.map((item, index) =>
+          dadosSeguros.map((item, index) =>
             React.createElement('div', {
               key: index,
               style: {
