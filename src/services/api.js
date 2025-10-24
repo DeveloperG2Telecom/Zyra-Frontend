@@ -408,6 +408,49 @@ class ApiService {
     return this.getConfiguracao('funcoes');
   }
 
+  // Métodos para backups
+  async getBackups(filters = {}) {
+    const queryParams = new URLSearchParams();
+    Object.keys(filters).forEach(key => {
+      if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+        queryParams.append(key, filters[key]);
+      }
+    });
+    
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/backups?${queryString}` : '/backups';
+    
+    return this.request(endpoint);
+  }
+
+  async getBackupById(id) {
+    return this.request(`/backups/${id}`);
+  }
+
+  async createBackup(backupData) {
+    return this.request('/backups', {
+      method: 'POST',
+      body: JSON.stringify(backupData),
+    });
+  }
+
+  async updateBackup(id, backupData) {
+    return this.request(`/backups/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(backupData),
+    });
+  }
+
+  async deleteBackup(id) {
+    return this.request(`/backups/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getBackupsByEquipamento(equipamentoId) {
+    return this.request(`/backups/equipamento/${equipamentoId}`);
+  }
+
   // Método para verificar saúde da API
   async healthCheck() {
     return this.request('/health');

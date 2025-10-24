@@ -1,12 +1,116 @@
 import React, { useState, useEffect } from 'react';
 import { useCache } from '../../contexts/CacheContext';
 
+// Estilos reutilizáveis
+const styles = {
+  label: {
+    fontSize: '12px',
+    fontWeight: 'bold',
+    color: '#404040',
+    display: 'block',
+    marginBottom: '6px'
+  },
+  input: {
+    width: '100%',
+    padding: '10px 12px',
+    border: '2px solid #d4d4d4',
+    borderRadius: '6px',
+    fontSize: '12px',
+    outline: 'none',
+    transition: 'border-color 0.2s'
+  },
+  select: {
+    width: '100%',
+    padding: '10px 12px',
+    border: '2px solid #d4d4d4',
+    borderRadius: '6px',
+    fontSize: '12px',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    backgroundColor: 'white'
+  },
+  textarea: {
+    width: '100%',
+    padding: '10px 12px',
+    border: '2px solid #d4d4d4',
+    borderRadius: '6px',
+    fontSize: '12px',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    resize: 'vertical'
+  }
+};
+
+// Componente de Input reutilizável
+const FormInput = ({ label, type = 'text', value, onChange, placeholder, required = false, min, step, accept, rows, style: customStyle = {} }) => {
+  const inputStyle = type === 'textarea' ? styles.textarea : styles.input;
+  const finalStyle = { ...inputStyle, ...customStyle };
+  
+  return (
+    <div>
+      <label style={styles.label}>
+        {label} {required && '*'}
+      </label>
+      {type === 'textarea' ? (
+        <textarea
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          rows={rows}
+          style={finalStyle}
+          onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
+          onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          min={min}
+          step={step}
+          accept={accept}
+          style={finalStyle}
+          onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
+          onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
+          required={required}
+        />
+      )}
+    </div>
+  );
+};
+
+// Componente de Select reutilizável
+const FormSelect = ({ label, value, onChange, options, placeholder, required = false }) => (
+  <div>
+    <label style={styles.label}>
+      {label} {required && '*'}
+    </label>
+    <select
+      value={value}
+      onChange={onChange}
+      style={styles.select}
+      onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
+      onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
+      required={required}
+    >
+      <option value="">{placeholder}</option>
+      {options.map(option => (
+        <option key={option.id || option.value} value={option.value || option.nome}>
+          {option.label || option.nome}
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
 const ModalAdicionarEquipamento = ({ isVisible, onClose, onSave }) => {
-  const { loadTiposAcesso, loadPops, loadFuncoes } = useCache();
+  const { loadTiposAcesso, loadPops, loadFuncoes, loadEquipamentos } = useCache();
   const [masterData, setMasterData] = useState({
     tiposAcesso: [],
     pops: [],
-    funcoes: []
+    funcoes: [],
+    equipamentos: []
   });
 
   const [formData, setFormData] = useState({
@@ -45,19 +149,21 @@ const ModalAdicionarEquipamento = ({ isVisible, onClose, onSave }) => {
       const loadMasterData = async () => {
         try {
           console.log('🔍 MODAL: Carregando dados mestres...');
-          const [tiposAcesso, pops, funcoes] = await Promise.all([
+          const [tiposAcesso, pops, funcoes, equipamentos] = await Promise.all([
             loadTiposAcesso(),
             loadPops(),
-            loadFuncoes()
+            loadFuncoes(),
+            loadEquipamentos()
           ]);
           
           setMasterData({
             tiposAcesso: tiposAcesso || [],
             pops: pops || [],
-            funcoes: funcoes || []
+            funcoes: funcoes || [],
+            equipamentos: equipamentos || []
           });
           
-          console.log('✅ MODAL: Dados mestres carregados:', { tiposAcesso, pops, funcoes });
+          console.log('✅ MODAL: Dados mestres carregados:', { tiposAcesso, pops, funcoes, equipamentos });
         } catch (error) {
           console.error('❌ MODAL: Erro ao carregar dados mestres:', error);
         }
@@ -65,7 +171,7 @@ const ModalAdicionarEquipamento = ({ isVisible, onClose, onSave }) => {
       
       loadMasterData();
     }
-  }, [isVisible, loadTiposAcesso, loadPops, loadFuncoes]);
+  }, [isVisible, loadTiposAcesso, loadPops, loadFuncoes, loadEquipamentos]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -255,295 +361,84 @@ const ModalAdicionarEquipamento = ({ isVisible, onClose, onSave }) => {
             flexDirection: 'column',
             gap: '16px'
           }}>
-            {/* Nome do Equipamento */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Nome do Equipamento *
-              </label>
-              <input
-                type="text"
-                value={formData.nome}
-                onChange={(e) => handleInputChange('nome', e.target.value)}
-                placeholder="Ex: Router Principal - Matriz"
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                transition: 'border-color 0.2s'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-                required
-              />
-            </div>
+            <FormInput
+              label="Nome do Equipamento"
+              value={formData.nome}
+              onChange={(e) => handleInputChange('nome', e.target.value)}
+              placeholder="Ex: Router Principal - Matriz"
+              required
+            />
 
-            {/* Tipo do Equipamento */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Tipo do Equipamento *
-              </label>
-              <select
-                value={formData.tipo}
-                onChange={(e) => handleInputChange('tipo', e.target.value)}
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                backgroundColor: 'white'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-                required
-              >
-                <option value="">Selecione o tipo...</option>
-                <option value="MIKROTIK">MIKROTIK</option>
-                <option value="MK CONCENTRADOR">MK CONCENTRADOR</option>
-                <option value="RADIO PTP">RADIO PTP</option>
-                <option value="AP">AP</option>
-                <option value="MIMOSA">MIMOSA</option>
-                <option value="OLT">OLT</option>
-                <option value="ROTEADOR">ROTEADOR</option>
-                <option value="OUTROS">OUTROS</option>
-              </select>
-            </div>
+            <FormSelect
+              label="Tipo do Equipamento"
+              value={formData.tipo}
+              onChange={(e) => handleInputChange('tipo', e.target.value)}
+              placeholder="Selecione o tipo..."
+              options={[
+                { value: 'MIKROTIK', label: 'MIKROTIK' },
+                { value: 'MK CONCENTRADOR', label: 'MK CONCENTRADOR' },
+                { value: 'RADIO PTP', label: 'RADIO PTP' },
+                { value: 'AP', label: 'AP' },
+                { value: 'MIMOSA', label: 'MIMOSA' },
+                { value: 'OLT', label: 'OLT' },
+                { value: 'ROTEADOR', label: 'ROTEADOR' },
+                { value: 'OUTROS', label: 'OUTROS' }
+              ]}
+              required
+            />
             
-            {/* Modelo */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Modelo
-              </label>
-              <input
-                type="text"
-                value={formData.modelo}
-                onChange={(e) => handleInputChange('modelo', e.target.value)}
-                placeholder="Ex: RB4011iGS+RM"
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                transition: 'border-color 0.2s'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              />
-            </div>
+            <FormInput
+              label="Modelo"
+              value={formData.modelo}
+              onChange={(e) => handleInputChange('modelo', e.target.value)}
+              placeholder="Ex: RB4011iGS+RM"
+            />
 
-            {/* Status */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Status
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => handleInputChange('status', e.target.value)}
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                backgroundColor: 'white'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              >
-                <option value="Ativo">Ativo</option>
-                <option value="Em Manutenção">Em Manutenção</option>
-                <option value="Reserva">Reserva</option>
-                <option value="Descartado">Descartado</option>
-                <option value="Em Teste">Em Teste</option>
-              </select>
-            </div>
+            <FormSelect
+              label="Status"
+              value={formData.status}
+              onChange={(e) => handleInputChange('status', e.target.value)}
+              placeholder="Selecione o status"
+              options={[
+                { value: 'Ativo', label: 'Ativo' },
+                { value: 'Em Manutenção', label: 'Em Manutenção' },
+                { value: 'Reserva', label: 'Reserva' },
+                { value: 'Descartado', label: 'Descartado' },
+                { value: 'Em Teste', label: 'Em Teste' }
+              ]}
+            />
             
-            {/* Serial/MAC */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Serial/MAC
-              </label>
-              <input
-                type="text"
-                value={formData.serialMac}
-                onChange={(e) => handleInputChange('serialMac', e.target.value)}
-                placeholder="Ex: 1234567890ABCD"
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                fontFamily: 'monospace'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              />
-            </div>
+            <FormInput
+              label="Serial/MAC"
+              value={formData.serialMac}
+              onChange={(e) => handleInputChange('serialMac', e.target.value)}
+              placeholder="Ex: 1234567890ABCD"
+              style={{ fontFamily: 'monospace' }}
+            />
             
-            {/* IP Privado */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                IP Privado
-              </label>
-              <input
-                type="text"
-                value={formData.ipPrivado}
-                onChange={(e) => handleInputChange('ipPrivado', e.target.value)}
-                placeholder="Ex: 192.168.1.1"
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                fontFamily: 'monospace'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              />
-            </div>
+            <FormInput
+              label="IP Privado"
+              value={formData.ipPrivado}
+              onChange={(e) => handleInputChange('ipPrivado', e.target.value)}
+              placeholder="Ex: 192.168.1.1"
+              style={{ fontFamily: 'monospace' }}
+            />
             
-            {/* IP Público */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                IP Público
-              </label>
-              <input
-                type="text"
-                value={formData.ipPublico}
-                onChange={(e) => handleInputChange('ipPublico', e.target.value)}
-                placeholder="Ex: 200.123.45.67"
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                fontFamily: 'monospace'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              />
-            </div>
+            <FormInput
+              label="IP Público"
+              value={formData.ipPublico}
+              onChange={(e) => handleInputChange('ipPublico', e.target.value)}
+              placeholder="Ex: 200.123.45.67"
+              style={{ fontFamily: 'monospace' }}
+            />
             
-            {/* Endereço da Localidade */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Endereço da Localidade
-              </label>
-              <input
-                type="text"
-                value={formData.localidade.endereco}
-                onChange={(e) => handleInputChange('localidade', { ...formData.localidade, endereco: e.target.value })}
-                placeholder="Ex: Rua das Flores, 123 - Centro, São Paulo - SP"
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                transition: 'border-color 0.2s'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              />
-            </div>
+            <FormInput
+              label="Endereço da Localidade"
+              value={formData.localidade.endereco}
+              onChange={(e) => handleInputChange('localidade', { ...formData.localidade, endereco: e.target.value })}
+              placeholder="Ex: Rua das Flores, 123 - Centro, São Paulo - SP"
+            />
             
-            {/* Endereço Completo */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Endereço Completo
-              </label>
-              <textarea
-                value={formData.endereco}
-                onChange={(e) => handleInputChange('endereco', e.target.value)}
-                placeholder="Ex: Rua das Flores, 123 - Centro"
-                rows={3}
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                resize: 'vertical'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              />
-            </div>
 
             {/* Coordenadas */}
             <div style={{
@@ -551,200 +446,32 @@ const ModalAdicionarEquipamento = ({ isVisible, onClose, onSave }) => {
               gridTemplateColumns: '1fr 1fr',
               gap: '12px'
             }}>
-              <div>
-                <label style={{
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  color: '#404040',
-                  display: 'block',
-                  marginBottom: '6px'
-                }}>
-                  Latitude
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  value={formData.localidade.lat}
-                  onChange={(e) => handleInputChange('localidade', { ...formData.localidade, lat: parseFloat(e.target.value) || '' })}
-                  placeholder="Ex: -23.5505"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '2px solid #d4d4d4',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                    backgroundColor: 'white'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                  onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-                />
-              </div>
-              <div>
-                <label style={{
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  color: '#404040',
-                  display: 'block',
-                  marginBottom: '6px'
-                }}>
-                  Longitude
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  value={formData.localidade.lng}
-                  onChange={(e) => handleInputChange('localidade', { ...formData.localidade, lng: parseFloat(e.target.value) || '' })}
-                  placeholder="Ex: -46.6333"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '2px solid #d4d4d4',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                    backgroundColor: 'white'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                  onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-                />
-              </div>
-            </div>
-
-            {/* Quantidade de Portas */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Quantidade de Portas
-              </label>
-              <input
+              <FormInput
+                label="Latitude"
                 type="number"
-                value={formData.quantidadePortas}
-                onChange={(e) => handleInputChange('quantidadePortas', e.target.value)}
-                placeholder="Ex: 24"
-                min={0}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  border: '2px solid #d4d4d4',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  outline: 'none',
-                  transition: 'border-color 0.2s'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
+                step="any"
+                value={formData.localidade.lat}
+                onChange={(e) => handleInputChange('localidade', { ...formData.localidade, lat: parseFloat(e.target.value) || '' })}
+                placeholder="Ex: -23.5505"
+              />
+              <FormInput
+                label="Longitude"
+                type="number"
+                step="any"
+                value={formData.localidade.lng}
+                onChange={(e) => handleInputChange('localidade', { ...formData.localidade, lng: parseFloat(e.target.value) || '' })}
+                placeholder="Ex: -46.6333"
               />
             </div>
 
-            {/* Alimentação */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Alimentação
-              </label>
-              <select
-                value={formData.alimentacao}
-                onChange={(e) => handleInputChange('alimentacao', e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  border: '2px solid #d4d4d4',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  outline: 'none',
-                  transition: 'border-color 0.2s',
-                  backgroundColor: 'white'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              >
-                <option value="">Selecione a alimentação</option>
-                <option value="PoE">PoE (Power over Ethernet)</option>
-                <option value="AC">AC (Corrente Alternada)</option>
-                <option value="DC">DC (Corrente Contínua)</option>
-                <option value="Bateria">Bateria</option>
-                <option value="Solar">Solar</option>
-              </select>
-            </div>
+            <FormInput
+              label="Rede Rural"
+              value={formData.redeRural}
+              onChange={(e) => handleInputChange('redeRural', e.target.value)}
+              placeholder="Ex: Rede Rural Centro"
+            />
 
-            {/* POP */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                POP
-              </label>
-              <select
-                value={formData.pop}
-                onChange={(e) => handleInputChange('pop', e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  border: '2px solid #d4d4d4',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  outline: 'none',
-                  transition: 'border-color 0.2s',
-                  backgroundColor: 'white'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              >
-                <option value="">Selecione um POP...</option>
-                {masterData.pops.map(pop => (
-                  <option key={pop.id} value={pop.nome}>
-                    {pop.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
 
-            {/* Rede Rural */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Rede Rural
-              </label>
-              <input
-                type="text"
-                value={formData.redeRural}
-                onChange={(e) => handleInputChange('redeRural', e.target.value)}
-                placeholder="Ex: Rede Rural Centro"
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  border: '2px solid #d4d4d4',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  outline: 'none',
-                  transition: 'border-color 0.2s'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              />
-            </div>
           </div>
           
           {/* Coluna direita */}
@@ -753,41 +480,36 @@ const ModalAdicionarEquipamento = ({ isVisible, onClose, onSave }) => {
             flexDirection: 'column',
             gap: '16px'
           }}>
-            {/* Modo de Acesso */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Modo de Acesso
-              </label>
-              <select
-                value={formData.modoAcesso}
-                onChange={(e) => handleInputChange('modoAcesso', e.target.value)}
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                backgroundColor: 'white'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              >
-                <option value="">Selecione o modo</option>
-                {masterData.tiposAcesso.map(tipo => (
-                  <option key={tipo.id} value={tipo.nome}>
-                    {tipo.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FormInput
+              label="Quantidade de Portas"
+              type="number"
+              value={formData.quantidadePortas}
+              onChange={(e) => handleInputChange('quantidadePortas', e.target.value)}
+              placeholder="Ex: 24"
+              min={0}
+            />
+
+            <FormSelect
+              label="Alimentação"
+              value={formData.alimentacao}
+              onChange={(e) => handleInputChange('alimentacao', e.target.value)}
+              placeholder="Selecione a alimentação"
+              options={[
+                { value: 'PoE', label: 'PoE (Power over Ethernet)' },
+                { value: 'AC', label: 'AC (Corrente Alternada)' },
+                { value: 'DC', label: 'DC (Corrente Contínua)' },
+                { value: 'Bateria', label: 'Bateria' },
+                { value: 'Solar', label: 'Solar' }
+              ]}
+            />
+
+            <FormSelect
+              label="Modo de Acesso"
+              value={formData.modoAcesso}
+              onChange={(e) => handleInputChange('modoAcesso', e.target.value)}
+              placeholder="Selecione o modo"
+              options={masterData.tiposAcesso}
+            />
             
             {/* Funções */}
             <div>
@@ -876,192 +598,63 @@ const ModalAdicionarEquipamento = ({ isVisible, onClose, onSave }) => {
               )}
             </div>
             
-            {/* Data de Aquisição */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Data de Aquisição
-              </label>
-              <input
-                type="date"
-                value={formData.dataAquisicao}
-                onChange={(e) => handleInputChange('dataAquisicao', e.target.value)}
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                transition: 'border-color 0.2s'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              />
-            </div>
+            <FormInput
+              label="Data de Aquisição"
+              type="date"
+              value={formData.dataAquisicao}
+              onChange={(e) => handleInputChange('dataAquisicao', e.target.value)}
+            />
             
-            {/* Tempo de Garantia */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Tempo de Garantia
-              </label>
-              <input
-                type="text"
-                value={formData.tempoGarantia}
-                onChange={(e) => handleInputChange('tempoGarantia', e.target.value)}
-                placeholder="Ex: 12 meses, 2 anos"
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                transition: 'border-color 0.2s'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              />
-            </div>
+            <FormInput
+              label="Tempo de Garantia"
+              value={formData.tempoGarantia}
+              onChange={(e) => handleInputChange('tempoGarantia', e.target.value)}
+              placeholder="Ex: 12 meses, 2 anos"
+            />
             
-            {/* Versão de Firmware */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Versão de Firmware
-              </label>
-              <input
-                type="text"
-                value={formData.versaoFirmware}
-                onChange={(e) => handleInputChange('versaoFirmware', e.target.value)}
-                placeholder="Ex: 7.8.1"
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                fontFamily: 'monospace'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              />
-            </div>
+            <FormInput
+              label="Versão de Firmware"
+              value={formData.versaoFirmware}
+              onChange={(e) => handleInputChange('versaoFirmware', e.target.value)}
+              placeholder="Ex: 7.8.1"
+              style={{ fontFamily: 'monospace' }}
+            />
 
-            {/* Equipamento Anterior */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Equipamento Anterior
-              </label>
-              <input
-                type="text"
-                value={formData.equipamentoAnterior}
-                onChange={(e) => handleInputChange('equipamentoAnterior', e.target.value)}
-                placeholder="Ex: Router Antigo - Desativado"
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                  transition: 'border-color 0.2s',
-                  backgroundColor: 'white'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              />
-            </div>
+            <FormSelect
+              label="Equipamento Anterior"
+              value={formData.equipamentoAnterior}
+              onChange={(e) => handleInputChange('equipamentoAnterior', e.target.value)}
+              placeholder="Selecione o equipamento anterior..."
+              options={masterData.equipamentos}
+            />
 
-            {/* Equipamento Posterior */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Equipamento Posterior
-              </label>
-              <input
-                type="text"
-                value={formData.equipamentoPosterior}
-                onChange={(e) => handleInputChange('equipamentoPosterior', e.target.value)}
-                placeholder="Ex: Router Futuro - Planejado"
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                  transition: 'border-color 0.2s',
-                  backgroundColor: 'white'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              />
-            </div>
+            <FormSelect
+              label="Equipamento Posterior"
+              value={formData.equipamentoPosterior}
+              onChange={(e) => handleInputChange('equipamentoPosterior', e.target.value)}
+              placeholder="Selecione o equipamento posterior..."
+              options={masterData.equipamentos}
+            />
 
-            {/* Foto do Equipamento */}
-            <div>
-              <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-              }}>
-                Foto do Equipamento
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files[0];
-                  if (file) {
-                    console.log('Arquivo selecionado:', file);
-                  }
-                }}
-                style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                  transition: 'border-color 0.2s',
-                  backgroundColor: 'white'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-                onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
-              />
-            </div>
+            <FormSelect
+              label="POP"
+              value={formData.pop}
+              onChange={(e) => handleInputChange('pop', e.target.value)}
+              placeholder="Selecione um POP..."
+              options={masterData.pops}
+            />
+
+            <FormInput
+              label="Foto do Equipamento"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  console.log('Arquivo selecionado:', file);
+                }
+              }}
+            />
           </div>
 
           {/* Observações (ocupando as duas colunas) */}
@@ -1069,32 +662,13 @@ const ModalAdicionarEquipamento = ({ isVisible, onClose, onSave }) => {
             gridColumn: '1 / -1',
             marginTop: '16px'
           }}>
-            <label style={{
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                display: 'block',
-                marginBottom: '6px'
-            }}>
-              Observações
-            </label>
-            <textarea
+            <FormInput
+              label="Observações"
+              type="textarea"
               value={formData.observacoes}
               onChange={(e) => handleInputChange('observacoes', e.target.value)}
               placeholder="Informações adicionais sobre o equipamento..."
               rows={3}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '12px',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                resize: 'vertical'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#7d26d9'}
-              onBlur={(e) => e.target.style.borderColor = '#d4d4d4'}
             />
           </div>
         </form>
