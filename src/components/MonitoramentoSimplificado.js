@@ -61,9 +61,14 @@ function MonitoramentoSimplificado() {
       try {
         setLoading(true);
         const data = await api.getEquipamentos();
-        setEquipamentos(data);
+        // Garantir que equipamentos seja sempre um array
+        const equipamentosArray = Array.isArray(data) ? data : (data?.data || []);
+        setEquipamentos(equipamentosArray);
+        console.log('📊 Monitoramento: Equipamentos carregados:', equipamentosArray.length);
       } catch (err) {
+        console.error('❌ Monitoramento: Erro ao carregar equipamentos:', err);
         setError(err.message);
+        setEquipamentos([]); // Garantir que seja um array vazio em caso de erro
       } finally {
         setLoading(false);
       }
@@ -74,6 +79,8 @@ function MonitoramentoSimplificado() {
 
   // Simular atualização periódica dos dados
   useEffect(() => {
+    if (!Array.isArray(equipamentos) || equipamentos.length === 0) return;
+    
     const interval = setInterval(() => {
       setDadosMonitoramento(prev => {
         const novosDados = {};
@@ -95,7 +102,7 @@ function MonitoramentoSimplificado() {
     return () => clearInterval(interval);
   }, [equipamentos]);
 
-  const equipamentosFiltrados = equipamentos.filter(equipamento => {
+  const equipamentosFiltrados = Array.isArray(equipamentos) ? equipamentos.filter(equipamento => {
     const matchesStatus = filtroStatus === 'todos' || equipamento.status === filtroStatus;
     const matchesTipo = filtroTipo === 'todos' || equipamento.modelo.toLowerCase().includes(filtroTipo.toLowerCase());
     const matchesSearch = searchTerm === '' || 
@@ -103,10 +110,10 @@ function MonitoramentoSimplificado() {
       equipamento.ipPrivado.includes(searchTerm) ||
       (equipamento.localidade && equipamento.localidade.endereco && equipamento.localidade.endereco.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesStatus && matchesTipo && matchesSearch;
-  });
+  }) : [];
 
   // Obter tipos únicos de equipamentos para os filtros
-  const tiposEquipamentos = [...new Set(equipamentos.map(eq => eq.modelo))].sort();
+  const tiposEquipamentos = Array.isArray(equipamentos) ? [...new Set(equipamentos.map(eq => eq.modelo))].sort() : [];
 
   const handleEquipamentoClick = (equipamento) => {
     setEquipamentoSelecionado(equipamento);

@@ -94,6 +94,42 @@ class ApiService {
     }
   }
 
+  // Método para requisições sem autenticação (para topologia)
+  async requestWithoutAuth(endpoint, options = {}) {
+    const url = `${this.baseURL}${endpoint}`;
+    
+    // Verificar cache para GET requests
+    if (!options.method || options.method === 'GET') {
+      const cacheKey = this.getCacheKey(endpoint, options);
+      const cached = this.getFromCache(cacheKey);
+      if (cached) return cached;
+    }
+    
+    const defaultOptions = {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    };
+
+    const config = { ...defaultOptions, ...options };
+
+    try {
+      const data = await this.retryRequest(url, config);
+      
+      // Salvar no cache para GET requests
+      if (!options.method || options.method === 'GET') {
+        const cacheKey = this.getCacheKey(endpoint, options);
+        this.setCache(cacheKey, data);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('API Error (sem auth):', error);
+      throw error;
+    }
+  }
+
   // Limpar cache
   clearCache() {
     this.cache.clear();
@@ -438,6 +474,35 @@ class ApiService {
   }
 
   // Métodos para dashboard removidos - dashboard agora usa dados diretos dos equipamentos
+
+  // Métodos para topologia (sem autenticação)
+  async getTopologiaPosicoes() {
+    return this.requestWithoutAuth('/topologia/posicoes');
+  }
+
+  async saveTopologiaPosicoes(posicoes, modificados = null) {
+    return this.requestWithoutAuth('/topologia/posicoes', {
+      method: 'POST',
+      body: JSON.stringify({ posicoes, modificados }),
+    });
+  }
+
+  async updateTopologiaPosicao(popKey, x, y) {
+    return this.requestWithoutAuth(`/topologia/posicoes/${popKey}`, {
+      method: 'PUT',
+      body: JSON.stringify({ x, y }),
+    });
+  }
+
+  async clearTopologiaPosicoes() {
+    return this.requestWithoutAuth('/topologia/posicoes', {
+      method: 'DELETE',
+    });
+  }
+
+  async getTopologiaEquipamentos() {
+    return this.requestWithoutAuth('/topologia/equipamentos');
+  }
 
   // Método para verificar saúde da API
   async healthCheck() {

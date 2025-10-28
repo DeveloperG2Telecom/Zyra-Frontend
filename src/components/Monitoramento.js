@@ -87,10 +87,10 @@ function Monitoramento() {
     return '#6b7280';
   };
 
-  const equipamentosFiltrados = equipamentos.filter(equipamento => {
+  const equipamentosFiltrados = Array.isArray(equipamentos) ? equipamentos.filter(equipamento => {
     if (filtroStatus === 'todos') return true;
     return equipamento.status === filtroStatus;
-  });
+  }) : [];
 
   const handleEquipamentoClick = (equipamento) => {
     setEquipamentoSelecionado(equipamento);
