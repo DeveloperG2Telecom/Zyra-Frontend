@@ -113,7 +113,7 @@ function Backups() {
     const pesquisaMatch = !pesquisa || 
       equipamento.nome.toLowerCase().includes(pesquisa.toLowerCase()) ||
       equipamento.ipPrivado.toLowerCase().includes(pesquisa.toLowerCase()) ||
-      equipamento.localidade?.toLowerCase().includes(pesquisa.toLowerCase());
+      ((typeof equipamento.pop === 'string' ? equipamento.pop : equipamento.pop?.nome) || equipamento.localidade?.endereco || equipamento.localidade || equipamento.cidade || equipamento.endereco?.cidade || '').toLowerCase().includes(pesquisa.toLowerCase());
     
     return statusMatch && pesquisaMatch;
   });

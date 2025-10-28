@@ -143,6 +143,40 @@ const ModalAdicionarEquipamento = ({ isVisible, onClose, onSave }) => {
 
   const [funcaoInput, setFuncaoInput] = useState('');
 
+  // Limpar dados do formulário quando o modal abrir
+  useEffect(() => {
+    if (isVisible) {
+      setFormData({
+        nome: '',
+        tipo: '',
+        modelo: '',
+        serialMac: '',
+        ipPrivado: '',
+        ipPublico: '',
+        localidade: {
+          lat: '',
+          lng: '',
+          endereco: ''
+        },
+        quantidadePortas: '',
+        alimentacao: '',
+        dataAquisicao: '',
+        tempoGarantia: '',
+        versaoFirmware: '',
+        modoAcesso: '',
+        funcoes: [],
+        status: 'Ativo',
+        pop: '',
+        redeRural: '',
+        equipamentoAnterior: '',
+        equipamentoPosterior: '',
+        fotoEquipamento: '',
+        observacoes: ''
+      });
+      setFuncaoInput('');
+    }
+  }, [isVisible]);
+
   // Carregar dados mestres quando o modal abrir
   useEffect(() => {
     if (isVisible) {
@@ -382,6 +416,7 @@ const ModalAdicionarEquipamento = ({ isVisible, onClose, onSave }) => {
                 { value: 'MIMOSA', label: 'MIMOSA' },
                 { value: 'OLT', label: 'OLT' },
                 { value: 'ROTEADOR', label: 'ROTEADOR' },
+                { value: 'SWITCH', label: 'SWITCH' },
                 { value: 'OUTROS', label: 'OUTROS' }
               ]}
               required

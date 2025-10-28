@@ -304,14 +304,18 @@ const EquipamentoModal = ({ equipamento, isVisible, onClose, onEdit, onDelete })
                 display: 'block',
                 marginBottom: '4px'
               }
-            }, 'Localidade'),
+            }, 'POP'),
             React.createElement('p', { 
               style: {
                 fontSize: '12px',
                 color: '#525252',
                 margin: 0
               }
-            }, equipamento.localidade?.endereco || equipamento.localidade || 'Não informado')
+            }, (typeof equipamento.pop === 'string' ? equipamento.pop : equipamento.pop?.nome) || 
+                equipamento.localidade?.endereco || 
+                equipamento.cidade || 
+                equipamento.endereco?.cidade ||
+                'Não informado')
           ),
           React.createElement('div', null,
             React.createElement('label', { 

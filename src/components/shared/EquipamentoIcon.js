@@ -147,6 +147,8 @@ export const detectarTipoEquipamento = (equipamento) => {
         return 'equipamento'; // Ícone genérico
       case 'ROTEADOR':
         return 'roteador';
+      case 'SWITCH':
+        return 'concentrador';
       case 'OUTROS':
         return 'equipamento';
       default:

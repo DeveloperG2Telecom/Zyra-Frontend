@@ -1,6 +1,7 @@
 import React from 'react';
 import BackgroundAnimado from './BackgroundAnimado';
 import Navbar from './Navbar';
+import NotificationContainer from './NotificationContainer';
 
 function Layout({ children, currentPage = '' }) {
   return React.createElement('div', { 
@@ -11,6 +12,7 @@ function Layout({ children, currentPage = '' }) {
   },
     React.createElement(BackgroundAnimado),
     React.createElement(Navbar, { currentPage }),
+    React.createElement(NotificationContainer),
     React.createElement('div', { 
       style: {
         paddingTop: '60px',

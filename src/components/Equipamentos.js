@@ -7,10 +7,10 @@ import ModalEditarEquipamento from './shared/ModalEditarEquipamento';
 import { useEquipamentos } from '../hooks/useEquipamentos';
 import { useDebounce } from '../hooks/useDebounce';
 import { useNotification } from '../hooks/useNotification';
-import { useCache } from '../contexts/CacheContext';
 import Notification from './shared/Notification';
+import { FiSearch, FiFilter, FiX, FiRefreshCw, FiPlus } from 'react-icons/fi';
 
-function Equipamentos() {
+const Equipamentos = React.memo(() => {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [sidebarAnimating, setSidebarAnimating] = useState(false);
   const [sidebarAnimatingOut, setSidebarAnimatingOut] = useState(false);
@@ -21,6 +21,15 @@ function Equipamentos() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [equipamentoParaEditar, setEquipamentoParaEditar] = useState(null);
+  
+  // Filtros
+  const [filtros, setFiltros] = useState({
+    pop: '',
+    tipo: '',
+    funcao: '',
+    status: ''
+  });
+  const [showFiltros, setShowFiltros] = useState(false);
 
   // Usar hook personalizado para equipamentos
   const { equipamentos, loading, error, loadEquipamentos, refreshEquipamentos, createEquipamento, updateEquipamento, deleteEquipamento } = useEquipamentos();
@@ -28,1624 +37,444 @@ function Equipamentos() {
   // Hook para notificações
   const { notifications, showSuccess, showError, removeNotification } = useNotification();
   
-  // Debug: Log dos equipamentos
-  React.useEffect(() => {
-    console.log('📊 COMPONENTE: Equipamentos atualizados:', equipamentos);
-    console.log('📊 COMPONENTE: Quantidade de equipamentos:', equipamentos?.length || 0);
-    console.log('📊 COMPONENTE: Loading:', loading);
-    console.log('📊 COMPONENTE: Error:', error);
-  }, [equipamentos, loading, error]);
-
-  // Carregamento inicial apenas uma vez
-  React.useEffect(() => {
-    console.log('Componente Equipamentos montado');
-  }, []);
+  // Carregar equipamentos quando o componente monta (sem paginação)
+  useEffect(() => {
+    console.log('🔄 Equipamentos: Componente montado, carregando equipamentos...');
+    loadEquipamentos({}, 1, 1000); // Buscar todos os equipamentos
+  }, [loadEquipamentos]);
   
   // Debounce da pesquisa para melhor performance
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   // Filtro otimizado com debounce
   const filteredEquipamentos = React.useMemo(() => {
-    console.log('🔍 FILTRO: Aplicando filtro...');
-    console.log('🔍 FILTRO: Equipamentos originais:', equipamentos?.length || 0);
-    console.log('🔍 FILTRO: Termo de busca:', debouncedSearchTerm);
+    console.log('🔍 Equipamentos: Calculando filtros com', equipamentos.length, 'equipamentos');
     
-    if (!debouncedSearchTerm) {
-      console.log('🔍 FILTRO: Sem termo de busca, retornando todos os equipamentos');
-      return equipamentos;
+    let filtered = equipamentos;
+    
+    // Filtro por pesquisa
+    if (debouncedSearchTerm) {
+      const searchLower = debouncedSearchTerm.toLowerCase();
+      filtered = filtered.filter(equipamento =>
+        equipamento.nome?.toLowerCase().includes(searchLower) ||
+        equipamento.modelo?.toLowerCase().includes(searchLower) ||
+        equipamento.serialMac?.toLowerCase().includes(searchLower) ||
+        equipamento.ipPrivado?.toLowerCase().includes(searchLower) ||
+        equipamento.ipPublico?.toLowerCase().includes(searchLower) ||
+        (typeof equipamento.pop === 'string' ? equipamento.pop : equipamento.pop?.nome)?.toLowerCase().includes(searchLower) ||
+        equipamento.localidade?.endereco?.toLowerCase().includes(searchLower) ||
+        equipamento.fabricante?.toLowerCase().includes(searchLower)
+      );
     }
     
-    const searchLower = debouncedSearchTerm.toLowerCase();
-    const filtered = equipamentos.filter(equipamento =>
-      equipamento.nome?.toLowerCase().includes(searchLower) ||
-      equipamento.modelo?.toLowerCase().includes(searchLower) ||
-      equipamento.serialMac?.toLowerCase().includes(searchLower) ||
-      equipamento.ipPrivado?.includes(debouncedSearchTerm) ||
-      equipamento.ipPublico?.includes(debouncedSearchTerm) ||
-      (equipamento.localidade?.endereco?.toLowerCase().includes(searchLower)) ||
-      equipamento.modoAcesso?.toLowerCase().includes(searchLower) ||
-      (equipamento.funcoes?.some(funcao => funcao.toLowerCase().includes(searchLower)))
-    );
+    // Filtro por POP
+    if (filtros.pop) {
+      filtered = filtered.filter(equipamento => {
+        const popValue = typeof equipamento.pop === 'string' ? equipamento.pop : equipamento.pop?.nome;
+        return popValue?.toLowerCase().includes(filtros.pop.toLowerCase());
+      });
+    }
     
-    console.log('🔍 FILTRO: Equipamentos filtrados:', filtered.length);
+    // Filtro por tipo
+    if (filtros.tipo) {
+      filtered = filtered.filter(equipamento => 
+        equipamento.tipo?.toLowerCase().includes(filtros.tipo.toLowerCase())
+      );
+    }
+    
+    // Filtro por função
+    if (filtros.funcao) {
+      filtered = filtered.filter(equipamento => 
+        equipamento.funcoes?.some(funcao => 
+          funcao.toLowerCase().includes(filtros.funcao.toLowerCase())
+        )
+      );
+    }
+    
+    if (filtros.status) {
+      filtered = filtered.filter(equipamento => 
+        equipamento.status?.toLowerCase().includes(filtros.status.toLowerCase())
+      );
+    }
+    
     return filtered;
-  }, [equipamentos, debouncedSearchTerm]);
+  }, [equipamentos, debouncedSearchTerm, filtros]);
 
-  // Fechar menu de opções quando clicar fora
-  React.useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showOptionsMenu && !event.target.closest('[data-options-menu]')) {
-        setShowOptionsMenu(false);
+  // Obter valores únicos para os filtros
+  const valoresUnicos = React.useMemo(() => {
+    const pops = [...new Set(equipamentos.map(e => typeof e.pop === 'string' ? e.pop : e.pop?.nome).filter(Boolean))];
+    const tipos = [...new Set(equipamentos.map(e => e.tipo).filter(Boolean))];
+    const funcoes = [...new Set(equipamentos.flatMap(e => e.funcoes || []))];
+    const status = [...new Set(equipamentos.map(e => e.status).filter(Boolean))];
+    
+    return { pops, tipos, funcoes, status };
+  }, [equipamentos]);
+
+  // Função para limpar filtros
+  const limparFiltros = () => {
+    setFiltros({ pop: '', tipo: '', funcao: '', status: '' });
+    setSearchTerm('');
+  };
+
+  // Função para abrir modal de adicionar (limpar dados)
+  const handleAbrirModalAdicionar = () => {
+    setEquipamentoParaEditar(null); // Garantir que não há dados do último equipamento
+    setShowAddModal(true);
+  };
+
+  // Função para abrir modal de editar
+  const handleAbrirModalEditar = (equipamento) => {
+    setEquipamentoParaEditar(equipamento);
+    setShowEditModal(true);
+  };
+
+  // Função para fechar modais
+  const handleFecharModais = () => {
+    setShowAddModal(false);
+    setShowEditModal(false);
+    setEquipamentoParaEditar(null);
+  };
+
+  // Função para salvar equipamento
+  const handleSaveEquipamento = async (equipamentoData) => {
+    try {
+      console.log('💾 Salvando equipamento:', equipamentoData);
+      console.log('💾 Tipo dos dados:', typeof equipamentoData);
+      console.log('💾 Campos presentes:', Object.keys(equipamentoData));
+      console.log('💾 Dados serializados:', JSON.stringify(equipamentoData, null, 2));
+      
+      const response = await createEquipamento(equipamentoData);
+      
+      if (response.success) {
+        showSuccess('Equipamento adicionado com sucesso!');
+        handleFecharModais();
+        await refreshEquipamentos(); // Recarregar lista
+      } else {
+        throw new Error(response.error || 'Erro ao adicionar equipamento');
       }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showOptionsMenu]);
-
-  if (loading) {
-    return React.createElement(Layout, { currentPage: '/equipamentos' },
-      React.createElement('div', {
-        style: {
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-          color: 'white',
-          fontSize: '18px'
-        }
-      }, 'Carregando equipamentos...')
-    );
-  }
-
-  if (error) {
-    return React.createElement(Layout, { currentPage: '/equipamentos' },
-      React.createElement('div', {
-        style: {
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-          color: 'white',
-          textAlign: 'center',
-          padding: '20px'
-        }
-      },
-        React.createElement('h2', { style: { marginBottom: '16px' } }, 'Erro ao carregar equipamentos'),
-        React.createElement('p', { style: { marginBottom: '20px', color: 'rgba(255, 255, 255, 0.7)' } }, error),
-        React.createElement('button', {
-          onClick: loadEquipamentos,
-          style: {
-            padding: '10px 20px',
-            backgroundColor: '#7d26d9',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px'
-          }
-        }, 'Tentar Novamente')
-      )
-    );
-  }
-
-  const toggleSidebar = () => {
-    if (sidebarVisible) {
-      setSidebarAnimatingOut(true);
-      setTimeout(() => {
-        setSidebarVisible(false);
-        setSidebarAnimatingOut(false);
-      }, 300);
-    } else {
-      setSidebarVisible(true);
-      setSidebarAnimating(true);
-      setTimeout(() => {
-        setSidebarAnimating(false);
-      }, 300);
+    } catch (err) {
+      console.error('Erro ao salvar equipamento:', err);
+      showError(`Erro ao salvar equipamento: ${err.message}`);
     }
   };
 
+  // Função para atualizar equipamento
+  const handleUpdateEquipamento = async (id, equipamentoData) => {
+    try {
+      console.log('🔄 Atualizando equipamento:', id, equipamentoData);
+      
+      const response = await updateEquipamento(id, equipamentoData);
+      
+      if (response.success) {
+        showSuccess('Equipamento atualizado com sucesso!');
+        handleFecharModais();
+        await refreshEquipamentos(); // Recarregar lista
+      } else {
+        throw new Error(response.error || 'Erro ao atualizar equipamento');
+      }
+    } catch (err) {
+      console.error('Erro ao atualizar equipamento:', err);
+      showError(`Erro ao atualizar equipamento: ${err.message}`);
+    }
+  };
+
+  // Função para deletar equipamento
+  const handleDeleteEquipamento = async (id) => {
+    try {
+      console.log('🗑️ Deletando equipamento:', id);
+      
+      const response = await deleteEquipamento(id);
+      
+      if (response.success) {
+        showSuccess('Equipamento deletado com sucesso!');
+        // Não precisa chamar refreshEquipamentos() aqui pois deleteEquipamento já faz o reload
+      } else {
+        throw new Error(response.error || 'Erro ao deletar equipamento');
+      }
+    } catch (err) {
+      console.error('Erro ao deletar equipamento:', err);
+      showError(`Erro ao deletar equipamento: ${err.message}`);
+    }
+  };
+
+  // Função para abrir sidebar
+  const handleOpenSidebar = () => {
+    setSidebarVisible(true);
+    setSidebarAnimating(true);
+    setSidebarAnimatingOut(false);
+  };
+
+  // Função para fechar sidebar
+  const handleCloseSidebar = () => {
+    setSidebarAnimatingOut(true);
+    setTimeout(() => {
+      setSidebarVisible(false);
+      setSidebarAnimating(false);
+      setSidebarAnimatingOut(false);
+    }, 300);
+  };
+
+  // Função para abrir modal de detalhes
   const handleEquipamentoClick = (equipamento) => {
     setSelectedEquipamento(equipamento);
     setModalVisible(true);
   };
 
-  const closeModal = () => {
+  // Função para fechar modal de detalhes
+  const handleCloseModal = () => {
     setModalVisible(false);
     setSelectedEquipamento(null);
   };
 
-  const handleSaveEquipamento = async (equipamentoData) => {
-    console.log('handleSaveEquipamento chamada com:', equipamentoData);
-    try {
-      // Validação apenas do campo obrigatório
-      if (!equipamentoData.nome || equipamentoData.nome.trim() === '') {
-        showError('Por favor, preencha o nome do equipamento.');
-        return;
-      }
+  // Loading spinner
+  if (loading) {
+    return (
+      <Layout currentPage="/equipamentos">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando equipamentos...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
-      if (!equipamentoData.tipo || equipamentoData.tipo.trim() === '') {
-        showError('Por favor, selecione o tipo do equipamento.');
-        return;
-      }
+  // Error state
+  if (error) {
+    return (
+      <Layout currentPage="/equipamentos">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="text-red-500 text-6xl mb-4">⚠️</div>
+            <p className="text-gray-600 mb-4">Erro ao carregar equipamentos</p>
+            <button 
+              onClick={() => loadEquipamentos({}, 1, 1000)}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            >
+              Tentar novamente
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
-      // Função auxiliar para converter valores vazios em null
-      const toNullIfEmpty = (value) => {
-        if (value === '' || value === undefined || value === null) return null;
-        return value;
-      };
+  return (
+    <Layout currentPage="/equipamentos">
+      <div className="p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">Equipamentos</h1>
+            <p className="text-white/70">
+              {filteredEquipamentos.length} de {equipamentos.length} equipamentos
+            </p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => loadEquipamentos({}, 1, 1000)}
+              className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white"
+            >
+              <FiRefreshCw className="w-4 h-4" />
+              <span>Atualizar</span>
+            </button>
+            <button
+              onClick={handleAbrirModalAdicionar}
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white"
+            >
+              <FiPlus className="w-4 h-4" />
+              <span>Adicionar Equipamento</span>
+            </button>
+          </div>
+        </div>
 
-      // Função auxiliar para converter coordenadas
-      const parseCoordinate = (value) => {
-        if (!value || value === '') return null;
-        const parsed = parseFloat(value);
-        return isNaN(parsed) ? null : parsed;
-      };
+        {/* Barra de pesquisa e filtros */}
+        <div className="bg-white/95 backdrop-blur-custom rounded-xl p-4 mb-6 border border-purple-100 shadow-lg">
+          <div className="flex flex-col lg:flex-row gap-3">
+            {/* Campo de pesquisa */}
+            <div className="flex-1 relative">
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Pesquisar equipamentos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+              />
+            </div>
 
-      // Preparar dados conforme schema do backend (apenas nome obrigatório)
-      const dadosParaSalvar = {
-        nome: equipamentoData.nome.trim(),
-        tipo: equipamentoData.tipo.trim(),
-        modelo: toNullIfEmpty(equipamentoData.modelo),
-        serialMac: toNullIfEmpty(equipamentoData.serialMac),
-        ipPublico: toNullIfEmpty(equipamentoData.ipPublico),
-        ipPrivado: toNullIfEmpty(equipamentoData.ipPrivado),
-        localidade: equipamentoData.localidade && (equipamentoData.localidade.lat || equipamentoData.localidade.lng || equipamentoData.localidade.endereco) ? {
-          lat: parseCoordinate(equipamentoData.localidade.lat),
-          lng: parseCoordinate(equipamentoData.localidade.lng),
-          endereco: toNullIfEmpty(equipamentoData.localidade.endereco)
-        } : null,
-        quantidadePortas: toNullIfEmpty(equipamentoData.quantidadePortas),
-        alimentacao: toNullIfEmpty(equipamentoData.alimentacao),
-        dataAquisicao: equipamentoData.dataAquisicao ? new Date(equipamentoData.dataAquisicao).toISOString() : null,
-        tempoGarantia: toNullIfEmpty(equipamentoData.tempoGarantia),
-        versaoFirmware: toNullIfEmpty(equipamentoData.versaoFirmware),
-        modoAcesso: toNullIfEmpty(equipamentoData.modoAcesso),
-        funcoes: equipamentoData.funcoes && equipamentoData.funcoes.length > 0 ? equipamentoData.funcoes : null,
-        status: toNullIfEmpty(equipamentoData.status) || 'Ativo',
-        equipamentoAnterior: toNullIfEmpty(equipamentoData.equipamentoAnterior),
-        equipamentoPosterior: toNullIfEmpty(equipamentoData.equipamentoPosterior),
-        fotoEquipamento: toNullIfEmpty(equipamentoData.fotoEquipamento),
-        pop: toNullIfEmpty(equipamentoData.pop),
-        redeRural: toNullIfEmpty(equipamentoData.redeRural)
-      };
+            {/* Botão de filtros */}
+            <button
+              onClick={() => setShowFiltros(!showFiltros)}
+              className="flex items-center space-x-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 text-sm transition-colors"
+            >
+              <FiFilter className="w-4 h-4" />
+              <span>Filtros</span>
+              {(filtros.pop || filtros.tipo || filtros.funcao || filtros.status) && (
+                <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full">
+                  {[filtros.pop, filtros.tipo, filtros.funcao, filtros.status].filter(Boolean).length}
+                </span>
+              )}
+            </button>
 
-      console.log('🔍 EQUIPAMENTOS: Dados do equipamento a ser salvo (formatados):', dadosParaSalvar);
-      console.log('🔍 EQUIPAMENTOS: JSON stringify dos dados:', JSON.stringify(dadosParaSalvar, null, 2));
-      
-      const response = await createEquipamento(dadosParaSalvar);
-      
-      if (response.success) {
-        setShowAddModal(false);
-        showSuccess('Equipamento adicionado com sucesso!');
-      } else {
-        throw new Error(response.error?.message || 'Erro ao criar equipamento');
-      }
-    } catch (error) {
-      console.error('Erro ao salvar equipamento:', error);
-      showError(`Erro ao salvar equipamento: ${error.message || 'Tente novamente.'}`);
-    }
-  };
+            {/* Limpar filtros */}
+            {(filtros.pop || filtros.tipo || filtros.funcao || filtros.status || searchTerm) && (
+              <button
+                onClick={limparFiltros}
+                className="flex items-center space-x-2 px-3 py-2 bg-red-100 hover:bg-red-200 rounded-lg text-red-700 text-sm transition-colors"
+              >
+                <FiX className="w-4 h-4" />
+                <span>Limpar</span>
+              </button>
+            )}
+          </div>
 
-  const handleEditEquipamento = (equipamento) => {
-    console.log('Editar equipamento:', equipamento);
-    // Fechar modal de visualização se estiver aberto
-    setModalVisible(false);
-    setSelectedEquipamento(null);
-    // Abrir modal de edição
-    setEquipamentoParaEditar(equipamento);
-    setShowEditModal(true);
-  };
+          {/* Filtros expandidos com animação */}
+          <div 
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${
+              showFiltros ? 'max-h-96 opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'
+            }`}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Filtro por POP */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">POP</label>
+                <select
+                  value={filtros.pop}
+                  onChange={(e) => setFiltros(prev => ({ ...prev, pop: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                >
+                  <option value="">Todos os POPs</option>
+                  {valoresUnicos.pops.map(pop => (
+                    <option key={pop} value={pop}>{pop}</option>
+                  ))}
+                </select>
+              </div>
 
-  const handleSaveEditEquipamento = async (equipamentoData) => {
-    console.log('🔍 EQUIPAMENTOS: handleSaveEditEquipamento chamada com:', equipamentoData);
-    console.log('🔍 EQUIPAMENTOS: ID do equipamento para editar:', equipamentoParaEditar?.id);
-    try {
-      if (!equipamentoData.nome || equipamentoData.nome.trim() === '') {
-        showError('Por favor, preencha o nome do equipamento.');
-        return;
-      }
+              {/* Filtro por Tipo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                <select
+                  value={filtros.tipo}
+                  onChange={(e) => setFiltros(prev => ({ ...prev, tipo: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                >
+                  <option value="">Todos os tipos</option>
+                  {valoresUnicos.tipos.map(tipo => (
+                    <option key={tipo} value={tipo}>{tipo}</option>
+                  ))}
+                </select>
+              </div>
 
-      if (!equipamentoData.tipo || equipamentoData.tipo.trim() === '') {
-        showError('Por favor, selecione o tipo do equipamento.');
-        return;
-      }
+              {/* Filtro por Função */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Função</label>
+                <select
+                  value={filtros.funcao}
+                  onChange={(e) => setFiltros(prev => ({ ...prev, funcao: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                >
+                  <option value="">Todas as funções</option>
+                  {valoresUnicos.funcoes.map(funcao => (
+                    <option key={funcao} value={funcao}>{funcao}</option>
+                  ))}
+                </select>
+              </div>
 
-      const toNullIfEmpty = (value) => {
-        if (value === '' || value === undefined || value === null) return null;
-        return value;
-      };
+              {/* Filtro por Status */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={filtros.status}
+                  onChange={(e) => setFiltros(prev => ({ ...prev, status: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                >
+                  <option value="">Todos os status</option>
+                  {valoresUnicos.status.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
 
-      const parseCoordinate = (value) => {
-        if (!value || value === '') return null;
-        const parsed = parseFloat(value);
-        return isNaN(parsed) ? null : parsed;
-      };
-
-      const dadosParaSalvar = {
-        nome: equipamentoData.nome.trim(),
-        tipo: equipamentoData.tipo.trim(),
-        modelo: toNullIfEmpty(equipamentoData.modelo),
-        serialMac: toNullIfEmpty(equipamentoData.serialMac),
-        ipPublico: toNullIfEmpty(equipamentoData.ipPublico),
-        ipPrivado: toNullIfEmpty(equipamentoData.ipPrivado),
-        localidade: equipamentoData.localidade && (equipamentoData.localidade.lat || equipamentoData.localidade.lng || equipamentoData.localidade.endereco) ? {
-          lat: parseCoordinate(equipamentoData.localidade.lat),
-          lng: parseCoordinate(equipamentoData.localidade.lng),
-          endereco: toNullIfEmpty(equipamentoData.localidade.endereco)
-        } : null,
-        quantidadePortas: toNullIfEmpty(equipamentoData.quantidadePortas),
-        alimentacao: toNullIfEmpty(equipamentoData.alimentacao),
-        dataAquisicao: equipamentoData.dataAquisicao ? new Date(equipamentoData.dataAquisicao).toISOString() : null,
-        tempoGarantia: toNullIfEmpty(equipamentoData.tempoGarantia),
-        versaoFirmware: toNullIfEmpty(equipamentoData.versaoFirmware),
-        modoAcesso: toNullIfEmpty(equipamentoData.modoAcesso),
-        funcoes: equipamentoData.funcoes && equipamentoData.funcoes.length > 0 ? equipamentoData.funcoes : null,
-        status: toNullIfEmpty(equipamentoData.status) || 'Ativo',
-        equipamentoAnterior: toNullIfEmpty(equipamentoData.equipamentoAnterior),
-        equipamentoPosterior: toNullIfEmpty(equipamentoData.equipamentoPosterior),
-        fotoEquipamento: toNullIfEmpty(equipamentoData.fotoEquipamento),
-        pop: toNullIfEmpty(equipamentoData.pop),
-        redeRural: toNullIfEmpty(equipamentoData.redeRural)
-      };
-
-      console.log('🔍 EQUIPAMENTOS: Dados do equipamento a ser atualizado (formatados):', dadosParaSalvar);
-      console.log('🔍 EQUIPAMENTOS: Chamando updateEquipamento...');
-      
-      const response = await updateEquipamento(equipamentoParaEditar.id, dadosParaSalvar);
-      console.log('🔍 EQUIPAMENTOS: Resposta do updateEquipamento:', response);
-      
-      if (response.success) {
-        setShowEditModal(false);
-        setEquipamentoParaEditar(null);
-        showSuccess('Equipamento atualizado com sucesso!');
-        refreshEquipamentos();
-      } else {
-        throw new Error(response.error?.message || 'Erro ao atualizar equipamento');
-      }
-    } catch (error) {
-      console.error('Erro ao atualizar equipamento:', error);
-      showError(`Erro ao atualizar equipamento: ${error.message || 'Tente novamente.'}`);
-    }
-  };
-
-  const handleDeleteEquipamento = async (equipamentoId) => {
-    try {
-      const response = await deleteEquipamento(equipamentoId);
-      
-      if (response.success) {
-        showSuccess('Equipamento deletado com sucesso!');
-      } else {
-        throw new Error(response.error?.message || 'Erro ao deletar equipamento');
-      }
-    } catch (error) {
-      console.error('Erro ao deletar equipamento:', error);
-      showError(`Erro ao deletar equipamento: ${error.message || 'Tente novamente.'}`);
-    }
-  };
-
-  return React.createElement(Layout, { currentPage: '/equipamentos' },
-    // CSS para animação de loading
-    React.createElement('style', null, `
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    `),
-    
-    // Background Animado (mesmo da tela de login)
-    React.createElement('div', { 
-      style: {
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-        overflow: 'hidden',
-        zIndex: -1
-      }
-    },
-      // Grid animado
-      React.createElement('div', { 
-        style: {
-          position: 'absolute',
-          width: '100%',
-          height: '100%',
-          backgroundImage: `
-            linear-gradient(rgba(125, 38, 217, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(125, 38, 217, 0.1) 1px, transparent 1px)
-          `,
-          backgroundSize: '50px 50px',
-          animation: 'grid-move 20s linear infinite'
-        }
-      }),
-      
-      // Nós de rede pulsantes
-      React.createElement('div', { 
-        style: {
-          position: 'absolute',
-          width: '100%',
-          height: '100%'
-        }
-      },
-        React.createElement('div', { 
-          style: {
-            position: 'absolute',
-            width: '6px',
-            height: '6px',
-            background: '#7d26d9',
-            borderRadius: '50%',
-            boxShadow: '0 0 15px #7d26d9',
-            animation: 'pulse 2s ease-in-out infinite',
-            top: '15%',
-            left: '8%'
-          }
-        }),
-        React.createElement('div', { 
-          style: {
-            position: 'absolute',
-            width: '6px',
-            height: '6px',
-            background: '#7d26d9',
-            borderRadius: '50%',
-            boxShadow: '0 0 15px #7d26d9',
-            animation: 'pulse 2s ease-in-out infinite 0.5s',
-            top: '25%',
-            left: '85%'
-          }
-        }),
-        React.createElement('div', { 
-          style: {
-            position: 'absolute',
-            width: '6px',
-            height: '6px',
-            background: '#7d26d9',
-            borderRadius: '50%',
-            boxShadow: '0 0 15px #7d26d9',
-            animation: 'pulse 2s ease-in-out infinite 1s',
-            top: '55%',
-            left: '15%'
-          }
-        }),
-        React.createElement('div', { 
-          style: {
-            position: 'absolute',
-            width: '6px',
-            height: '6px',
-            background: '#7d26d9',
-            borderRadius: '50%',
-            boxShadow: '0 0 15px #7d26d9',
-            animation: 'pulse 2s ease-in-out infinite 1.5s',
-            top: '65%',
-            left: '75%'
-          }
-        }),
-        React.createElement('div', { 
-          style: {
-            position: 'absolute',
-            width: '6px',
-            height: '6px',
-            background: '#7d26d9',
-            borderRadius: '50%',
-            boxShadow: '0 0 15px #7d26d9',
-            animation: 'pulse 2s ease-in-out infinite 2s',
-            top: '35%',
-            left: '45%'
-          }
-        })
-      ),
-      
-      // Linhas de conexão
-      React.createElement('div', { 
-        style: {
-          position: 'absolute',
-          height: '1px',
-          background: 'linear-gradient(90deg, transparent, #7d26d9, transparent)',
-          animation: 'data-flow 3s ease-in-out infinite',
-          top: '20%',
-          left: '8%',
-          width: '77%',
-          transform: 'rotate(12deg)'
-        }
-      }),
-      React.createElement('div', { 
-        style: {
-          position: 'absolute',
-          height: '1px',
-          background: 'linear-gradient(90deg, transparent, #7d26d9, transparent)',
-          animation: 'data-flow 3s ease-in-out infinite 1.5s',
-          top: '50%',
-          left: '15%',
-          width: '60%',
-          transform: 'rotate(-15deg)'
-        }
-      })
-    ),
-    
-    // Navbar fixa superior
-    React.createElement('div', { 
-      style: {
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: '60px',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(10px)',
-        borderBottom: '1px solid rgba(125, 38, 217, 0.1)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 24px',
-        zIndex: 1000,
-        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)'
-      }
-    },
-      // Logo e título
-      React.createElement('div', { 
-        style: {
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }
-      },
-        React.createElement('img', { 
-          src: '/logo-sem-fundo.png', 
-          alt: 'Zyra Logo', 
-          style: {
-            width: '32px',
-            height: '32px',
-            objectFit: 'contain'
-          }
-        }),
-        React.createElement('div', null,
-          React.createElement('h1', { 
-            style: {
-              fontSize: '16px',
-              fontWeight: 'bold',
-              color: '#7d26d9',
-              margin: 0,
-              lineHeight: 1
-            }
-          }, 'Zyra'),
-          React.createElement('p', { 
-            style: {
-              fontSize: '9px',
-              color: '#737373',
-              fontWeight: '500',
-              margin: 0,
-              lineHeight: 1
-            }
-          }, 'Sistema de Monitoramento')
-        )
-      ),
-      
-      // Menu de navegação horizontal
-      React.createElement('nav', { 
-        style: {
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }
-      },
-        React.createElement('button', {
-          onClick: () => window.location.href = '/home',
-          style: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            border: 'none',
-            background: 'transparent',
-            color: '#404040',
-            fontSize: '13px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }
-        },
-          React.createElement('svg', {
-            width: '16',
-            height: '16',
-            viewBox: '0 0 24 24',
-            fill: 'none',
-            stroke: 'currentColor',
-            strokeWidth: '2',
-            strokeLinecap: 'round',
-            strokeLinejoin: 'round'
-          },
-            React.createElement('rect', { x: '3', y: '3', width: '7', height: '7' }),
-            React.createElement('rect', { x: '14', y: '3', width: '7', height: '7' }),
-            React.createElement('rect', { x: '14', y: '14', width: '7', height: '7' }),
-            React.createElement('rect', { x: '3', y: '14', width: '7', height: '7' })
-          ),
-          'Dashboard'
-        ),
-        React.createElement('button', {
-          style: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            border: 'none',
-            background: 'rgba(125, 38, 217, 0.1)',
-            color: '#7d26d9',
-            fontSize: '13px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }
-        },
-          React.createElement('svg', {
-            width: '16',
-            height: '16',
-            viewBox: '0 0 24 24',
-            fill: 'none',
-            stroke: 'currentColor',
-            strokeWidth: '2',
-            strokeLinecap: 'round',
-            strokeLinejoin: 'round'
-          },
-            React.createElement('rect', { x: '2', y: '3', width: '20', height: '14', rx: '2', ry: '2' }),
-            React.createElement('line', { x1: '8', y1: '21', x2: '16', y2: '21' }),
-            React.createElement('line', { x1: '12', y1: '17', x2: '12', y2: '21' })
-          ),
-          'Equipamentos'
-        ),
-        React.createElement('button', {
-          onClick: () => window.location.href = '/pops',
-          style: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            border: 'none',
-            background: 'transparent',
-            color: '#404040',
-            fontSize: '13px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }
-        },
-          React.createElement('svg', {
-            width: '16',
-            height: '16',
-            viewBox: '0 0 24 24',
-            fill: 'none',
-            stroke: 'currentColor',
-            strokeWidth: '2',
-            strokeLinecap: 'round',
-            strokeLinejoin: 'round'
-          },
-            React.createElement('circle', { cx: '12', cy: '12', r: '10' }),
-            React.createElement('path', { d: 'M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z' })
-          ),
-          'POPs'
-        ),
-        React.createElement('button', {
-          onClick: () => window.location.href = '/topologia',
-          style: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            border: 'none',
-            background: 'transparent',
-            color: '#404040',
-            fontSize: '13px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }
-        },
-          React.createElement('svg', {
-            width: '16',
-            height: '16',
-            viewBox: '0 0 24 24',
-            fill: 'none',
-            stroke: 'currentColor',
-            strokeWidth: '2',
-            strokeLinecap: 'round',
-            strokeLinejoin: 'round'
-          },
-            React.createElement('circle', { cx: '12', cy: '12', r: '10' }),
-            React.createElement('line', { x1: '2', y1: '12', x2: '22', y2: '12' }),
-            React.createElement('path', { d: 'M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z' })
-          ),
-          'Topologia'
-        ),
-        React.createElement('button', {
-          onClick: () => window.location.href = '/teste-conexao',
-          style: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            border: 'none',
-            background: 'transparent',
-            color: '#404040',
-            fontSize: '13px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }
-        },
-          React.createElement('svg', {
-            width: '16',
-            height: '16',
-            viewBox: '0 0 24 24',
-            fill: 'none',
-            stroke: 'currentColor',
-            strokeWidth: '2',
-            strokeLinecap: 'round',
-            strokeLinejoin: 'round'
-          },
-            React.createElement('path', { d: 'M9 12l2 2 4-4' }),
-            React.createElement('path', { d: 'M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3' }),
-            React.createElement('path', { d: 'M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3' }),
-            React.createElement('path', { d: 'M13 12h3a2 2 0 0 1 2 2v1' }),
-            React.createElement('path', { d: 'M13 12h-3a2 2 0 0 0-2 2v1' })
-          ),
-          'Teste Conexão'
-        ),
-        React.createElement('button', {
-          onClick: () => window.location.href = '/monitoramento',
-          style: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            border: 'none',
-            background: 'transparent',
-            color: '#404040',
-            fontSize: '13px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }
-        },
-          React.createElement('svg', {
-            width: '16',
-            height: '16',
-            viewBox: '0 0 24 24',
-            fill: 'none',
-            stroke: 'currentColor',
-            strokeWidth: '2',
-            strokeLinecap: 'round',
-            strokeLinejoin: 'round'
-          },
-            React.createElement('path', { d: 'M22 12h-4l-3 9L9 3l-3 9H2' })
-          ),
-          'Monitoramento'
-        ),
-        React.createElement('button', {
-          onClick: () => window.location.href = '/backups',
-          style: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            border: 'none',
-            background: 'transparent',
-            color: '#404040',
-            fontSize: '13px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }
-        },
-          React.createElement('svg', {
-            width: '16',
-            height: '16',
-            viewBox: '0 0 24 24',
-            fill: 'none',
-            stroke: 'currentColor',
-            strokeWidth: '2',
-            strokeLinecap: 'round',
-            strokeLinejoin: 'round'
-          },
-            React.createElement('path', { d: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z' }),
-            React.createElement('polyline', { points: '3.27,6.96 12,12.01 20.73,6.96' }),
-            React.createElement('line', { x1: '12', y1: '22.08', x2: '12', y2: '12' })
-          ),
-          'Backups'
-        )
-      ),
-      
-      // Status, filtro e logout
-      React.createElement('div', { 
-        style: {
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }
-      },
-        // Botão de filtro
-        React.createElement('button', {
-          onClick: toggleSidebar,
-          style: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            border: 'none',
-            background: sidebarVisible ? 'rgba(125, 38, 217, 0.1)' : 'transparent',
-            color: sidebarVisible ? '#7d26d9' : '#404040',
-            fontSize: '13px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }
-        },
-          React.createElement('svg', {
-            width: '16',
-            height: '16',
-            viewBox: '0 0 24 24',
-            fill: 'none',
-            stroke: 'currentColor',
-            strokeWidth: '2',
-            strokeLinecap: 'round',
-            strokeLinejoin: 'round'
-          },
-            React.createElement('polygon', { points: '22,3 2,3 10,12.46 10,19 14,21 14,12.46' })
-          ),
-          'Filtros'
-        ),
-        React.createElement('div', { 
-          style: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '6px 12px',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-            borderRadius: '16px',
-            color: '#10b981',
-            fontSize: '11px',
-            fontWeight: '500'
-          }
-        },
-          React.createElement('svg', {
-            width: '8',
-            height: '8',
-            viewBox: '0 0 24 24',
-            fill: 'currentColor'
-          },
-            React.createElement('circle', { cx: '12', cy: '12', r: '10' })
-          ),
-          'Online'
-        ),
-        React.createElement('button', {
-          onClick: () => window.location.href = '/login',
-          style: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            border: 'none',
-            background: 'rgba(251, 143, 55, 0.1)',
-            color: '#fb8f37',
-            fontSize: '13px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }
-        },
-          React.createElement('svg', {
-            width: '16',
-            height: '16',
-            viewBox: '0 0 24 24',
-            fill: 'none',
-            stroke: 'currentColor',
-            strokeWidth: '2',
-            strokeLinecap: 'round',
-            strokeLinejoin: 'round'
-          },
-            React.createElement('path', { d: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4' }),
-            React.createElement('polyline', { points: '16,17 21,12 16,7' }),
-            React.createElement('line', { x1: '21', y1: '12', x2: '9', y2: '12' })
-          ),
-          'Sair'
-        )
-      )
-    ),
-    
-    // Layout principal com padding para navbar
-    React.createElement('div', { 
-      style: {
-        paddingTop: '60px',
-        minHeight: '100vh',
-        position: 'relative',
-        zIndex: 10
-      }
-    },
-      // Sidebar (condicional)
-      (sidebarVisible || sidebarAnimating || sidebarAnimatingOut) && React.createElement('div', { 
-        style: {
-          width: '280px',
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(10px)',
-          borderRight: '1px solid rgba(125, 38, 217, 0.1)',
-          padding: '24px 0',
-          display: 'flex',
-          flexDirection: 'column',
-          position: 'fixed',
-          top: '60px',
-          left: 0,
-          height: 'calc(100vh - 60px)',
-          overflowY: 'auto',
-          zIndex: 999,
-          boxShadow: '2px 0 10px rgba(0, 0, 0, 0.1)',
-          transform: sidebarVisible ? 'translateX(0)' : 'translateX(-100%)',
-          transition: 'transform 0.3s ease-out, opacity 0.3s ease-out',
-          animation: sidebarAnimating ? 'slideInLeft 0.3s ease-out' : sidebarAnimatingOut ? 'slideOutLeft 0.3s ease-in' : 'none'
-        }
-      },
-        // Filtros específicos para equipamentos
-        React.createElement('div', { 
-          style: {
-            flex: 1,
-            padding: '0 16px'
-          }
-        },
-          React.createElement('div', { 
-            style: {
-              marginBottom: '24px'
-            }
-          },
-            React.createElement('h3', { 
-              style: {
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                marginBottom: '12px'
+        {/* Grid de equipamentos */}
+        {filteredEquipamentos.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-gray-400 text-6xl mb-4">🔍</div>
+            <h3 className="text-xl font-semibold text-gray-600 mb-2">
+              {searchTerm || filtros.pop || filtros.tipo || filtros.funcao || filtros.status
+                ? 'Nenhum equipamento encontrado' 
+                : 'Nenhum equipamento cadastrado'
               }
-            }, 'Pesquisar Equipamento'),
-            React.createElement('input', {
-              type: 'text',
-              value: searchTerm,
-              onChange: (e) => setSearchTerm(e.target.value),
-              placeholder: 'Nome, modelo, IP, localidade...',
-              style: {
-                width: '100%',
-                padding: '8px 12px',
-                border: '2px solid #d4d4d4',
-                borderRadius: '6px',
-                fontSize: '11px',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                marginBottom: '16px'
-              },
-              onFocus: (e) => e.target.style.borderColor = '#7d26d9',
-              onBlur: (e) => e.target.style.borderColor = '#d4d4d4'
-            })
-          ),
-          
-          React.createElement('div', { 
-            style: {
-              marginBottom: '24px'
-            }
-          },
-            React.createElement('h3', { 
-              style: {
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                marginBottom: '12px'
+            </h3>
+            <p className="text-gray-500 mb-6">
+              {searchTerm || filtros.pop || filtros.tipo || filtros.funcao || filtros.status
+                ? 'Tente ajustar os filtros ou termo de pesquisa'
+                : 'Adicione o primeiro equipamento para começar'
               }
-            }, 'Filtros por Fabricante'),
-            React.createElement('div', { 
-              style: {
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px'
-              }
-            },
-              React.createElement('button', {
-                style: {
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px 10px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'rgba(125, 38, 217, 0.1)',
-                  color: '#7d26d9',
-                  fontSize: '10px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  textAlign: 'left'
-                }
-              },
-                React.createElement('span', { style: { fontSize: '12px' } }, '🔧'),
-                'Mikrotik'
-              ),
-              React.createElement('button', {
-                style: {
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px 10px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'rgba(59, 130, 246, 0.1)',
-                  color: '#3b82f6',
-                  fontSize: '10px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  textAlign: 'left'
-                }
-              },
-                React.createElement('span', { style: { fontSize: '12px' } }, '📡'),
-                'Huawei'
-              ),
-              React.createElement('button', {
-                style: {
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px 10px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  color: '#10b981',
-                  fontSize: '10px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  textAlign: 'left'
-                }
-              },
-                React.createElement('span', { style: { fontSize: '12px' } }, '📶'),
-                'Ubiquiti'
-              )
-            )
-          ),
-          
-          React.createElement('div', { 
-            style: {
-              marginBottom: '24px'
-            }
-          },
-            React.createElement('h3', { 
-              style: {
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#404040',
-                marginBottom: '12px'
-              }
-            }, 'Status'),
-            React.createElement('div', { 
-              style: {
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px'
-              }
-            },
-              React.createElement('button', {
-                style: {
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px 10px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  color: '#10b981',
-                  fontSize: '10px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  textAlign: 'left'
-                }
-              },
-                React.createElement('span', { style: { fontSize: '12px' } }, '✅'),
-                'Online'
-              ),
-              React.createElement('button', {
-                style: {
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px 10px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  color: '#f59e0b',
-                  fontSize: '10px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  textAlign: 'left'
-                }
-              },
-                React.createElement('span', { style: { fontSize: '12px' } }, '⚠️'),
-                'Com Alertas'
-              ),
-              React.createElement('button', {
-                style: {
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px 10px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  color: '#ef4444',
-                  fontSize: '10px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  textAlign: 'left'
-                }
-              },
-                React.createElement('span', { style: { fontSize: '12px' } }, '❌'),
-                'Offline'
-              )
-            )
-          )
-        )
-      ),
-      
-      // Conteúdo principal
-      React.createElement('div', { 
-        style: {
-          marginLeft: (sidebarVisible || sidebarAnimating || sidebarAnimatingOut) ? '280px' : '0',
-          padding: '24px',
-          minHeight: 'calc(100vh - 60px)',
-          overflow: 'auto',
-          transition: 'margin-left 0.3s ease-out'
-        }
-      },
-        // Header
-        React.createElement('div', { 
-          style: {
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '24px'
-          }
-        },
-          React.createElement('div', null,
-            React.createElement('h2', { 
-              style: {
-                fontSize: '20px',
-                fontWeight: 'bold',
-                color: 'white',
-                marginBottom: '4px'
-              }
-            }, 'Equipamentos'),
-            React.createElement('p', { 
-              style: {
-                fontSize: '11px',
-                color: 'rgba(255, 255, 255, 0.7)'
-              }
-            }, `${filteredEquipamentos.length} equipamentos encontrados`)
-          ),
-          React.createElement('div', { 
-            'data-options-menu': true,
-            style: {
-              position: 'relative'
-            }
-          },
-            // Botão de teste direto
-            React.createElement('button', {
-              onClick: async () => {
-                console.log('🧪 TESTE: Testando conexão direta com backend...');
-                try {
-                  const response = await fetch('http://localhost:3002/api/v1/equipamentos', {
-                    method: 'GET',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                  });
-                  console.log('🧪 TESTE: Status:', response.status);
-                  const data = await response.json();
-                  console.log('🧪 TESTE: Dados recebidos:', data);
-                  alert(`Teste direto: ${response.status} - ${data?.data?.length || 0} equipamentos`);
-                } catch (error) {
-                  console.error('🧪 TESTE: Erro:', error);
-                  alert(`Erro no teste: ${error.message}`);
-                }
-              },
-              style: {
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '36px',
-                height: '36px',
-                backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
-                borderRadius: '8px',
-                color: 'white',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                marginRight: '8px'
-              }
-            },
-              React.createElement('svg', {
-                width: '16',
-                height: '16',
-                viewBox: '0 0 24 24',
-                fill: 'none',
-                stroke: 'currentColor',
-                strokeWidth: '2',
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round'
-              },
-                React.createElement('path', { d: 'M9 12l2 2 4-4' }),
-                React.createElement('path', { d: 'M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.5 0 2.9.37 4.13 1.02' })
-              )
-            ),
+            </p>
+            {!searchTerm && !filtros.pop && !filtros.tipo && !filtros.funcao && !filtros.status && (
+              <button
+                onClick={handleAbrirModalAdicionar}
+                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+              >
+                Adicionar Equipamento
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredEquipamentos.map((equipamento) => (
+              <EquipamentoCard
+                key={equipamento.id}
+                equipamento={equipamento}
+                onClick={handleEquipamentoClick}
+                onEdit={handleAbrirModalEditar}
+                onDelete={handleDeleteEquipamento}
+              />
+            ))}
+          </div>
+        )}
 
-            // Botão de refresh
-            React.createElement('button', {
-              onClick: () => {
-                console.log('Refresh manual solicitado pelo usuário');
-                refreshEquipamentos();
-              },
-              style: {
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '36px',
-                height: '36px',
-                backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                border: '1px solid rgba(34, 197, 94, 0.3)',
-                borderRadius: '8px',
-                color: 'white',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                marginRight: '8px'
-              }
-            },
-              React.createElement('svg', {
-                width: '16',
-                height: '16',
-                viewBox: '0 0 24 24',
-                fill: 'none',
-                stroke: 'currentColor',
-                strokeWidth: '2',
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round'
-              },
-                React.createElement('path', { d: 'M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8' }),
-                React.createElement('path', { d: 'M21 3v5h-5' }),
-                React.createElement('path', { d: 'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16' }),
-                React.createElement('path', { d: 'M3 21v-5h5' })
-              )
-            ),
+        {/* Modais */}
+        {modalVisible && selectedEquipamento && (
+          <EquipamentoModal
+            equipamento={selectedEquipamento}
+            onClose={handleCloseModal}
+          />
+        )}
 
-            React.createElement('button', {
-              onClick: () => setShowOptionsMenu(!showOptionsMenu),
-              style: {
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '36px',
-                height: '36px',
-                backgroundColor: 'rgba(125, 38, 217, 0.2)',
-                border: '1px solid rgba(125, 38, 217, 0.3)',
-                borderRadius: '8px',
-                color: 'white',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }
-            },
-              React.createElement('svg', {
-                width: '16',
-                height: '16',
-                viewBox: '0 0 24 24',
-                fill: 'none',
-                stroke: 'currentColor',
-                strokeWidth: '2',
-                strokeLinecap: 'round',
-                strokeLinejoin: 'round'
-              },
-                React.createElement('line', { x1: '12', y1: '5', x2: '12', y2: '19' }),
-                React.createElement('line', { x1: '5', y1: '12', x2: '19', y2: '12' })
-              )
-            ),
-            
-            // Menu de opções
-            showOptionsMenu && React.createElement('div', { 
-              style: {
-                position: 'absolute',
-                top: '40px',
-                right: '0',
-                backgroundColor: 'white',
-                borderRadius: '8px',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-                border: '1px solid rgba(125, 38, 217, 0.1)',
-                minWidth: '160px',
-                zIndex: 1000
-              }
-            },
-              React.createElement('button', {
-                onClick: () => {
-                  console.log('Botão adicionar clicado');
-                  setShowOptionsMenu(false);
-                  setShowAddModal(true);
-                  console.log('showAddModal definido como true');
-                },
-                style: {
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: 'none',
-                  background: 'linear-gradient(135deg, #7d26d9 0%, #9f3ffd 100%)',
-                  textAlign: 'left',
-                  fontSize: '12px',
-                  color: 'white',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  borderBottom: '1px solid rgba(125, 38, 217, 0.1)',
-                  borderRadius: '6px 6px 0 0',
-                  fontWeight: '500',
-                  boxShadow: '0 2px 8px rgba(125, 38, 217, 0.2)'
-                },
-                onMouseEnter: (e) => {
-                  e.target.style.background = 'linear-gradient(135deg, #6b1bb8 0%, #8b2ce8 100%)';
-                  e.target.style.transform = 'translateY(-1px)';
-                  e.target.style.boxShadow = '0 4px 12px rgba(125, 38, 217, 0.3)';
-                },
-                onMouseLeave: (e) => {
-                  e.target.style.background = 'linear-gradient(135deg, #7d26d9 0%, #9f3ffd 100%)';
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 2px 8px rgba(125, 38, 217, 0.2)';
-                }
-              },
-                React.createElement('div', { 
-                  style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }
-                },
-                  React.createElement('svg', {
-                    width: '14',
-                    height: '14',
-                    viewBox: '0 0 24 24',
-                    fill: 'none',
-                    stroke: 'currentColor',
-                    strokeWidth: '2',
-                    strokeLinecap: 'round',
-                    strokeLinejoin: 'round'
-                  },
-                    React.createElement('line', { x1: '12', y1: '5', x2: '12', y2: '19' }),
-                    React.createElement('line', { x1: '5', y1: '12', x2: '19', y2: '12' })
-                  ),
-                  'Adicionar Equipamento'
-                )
-              ),
-              React.createElement('button', {
-                onClick: () => {
-                  setShowOptionsMenu(false);
-                  // Aqui seria a lógica para importar equipamentos
-                  console.log('Importar equipamentos');
-                  // Aqui você pode implementar a lógica para abrir um seletor de arquivo
-                  alert('Abrir seletor de arquivo para importar equipamentos');
-                },
-                style: {
-                  width: '100%',
-                  padding: '10px 16px',
-                  border: 'none',
-                  background: 'none',
-                  textAlign: 'left',
-                  fontSize: '12px',
-                  color: '#404040',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  borderBottom: '1px solid rgba(125, 38, 217, 0.1)'
-                },
-                onMouseEnter: (e) => {
-                  e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
-                  e.target.style.color = '#3b82f6';
-                },
-                onMouseLeave: (e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.color = '#404040';
-                }
-              },
-                React.createElement('div', { 
-                  style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }
-                },
-                  React.createElement('svg', {
-                    width: '14',
-                    height: '14',
-                    viewBox: '0 0 24 24',
-                    fill: 'none',
-                    stroke: 'currentColor',
-                    strokeWidth: '2',
-                    strokeLinecap: 'round',
-                    strokeLinejoin: 'round'
-                  },
-                    React.createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
-                    React.createElement('polyline', { points: '7,10 12,15 17,10' }),
-                    React.createElement('line', { x1: '12', y1: '15', x2: '12', y2: '3' })
-                  ),
-                  'Importar Equipamentos'
-                )
-              ),
-              React.createElement('button', {
-                onClick: () => {
-                  setShowOptionsMenu(false);
-                  // Aqui seria a lógica para exportar equipamentos
-                  console.log('Exportar equipamentos');
-                  // Aqui você pode implementar a lógica para gerar e baixar um arquivo
-                  alert('Gerar e baixar arquivo com lista de equipamentos');
-                },
-                style: {
-                  width: '100%',
-                  padding: '10px 16px',
-                  border: 'none',
-                  background: 'none',
-                  textAlign: 'left',
-                  fontSize: '12px',
-                  color: '#404040',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  borderBottom: '1px solid rgba(125, 38, 217, 0.1)'
-                },
-                onMouseEnter: (e) => {
-                  e.target.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
-                  e.target.style.color = '#10b981';
-                },
-                onMouseLeave: (e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.color = '#404040';
-                }
-              },
-                React.createElement('div', { 
-                  style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }
-                },
-                  React.createElement('svg', {
-                    width: '14',
-                    height: '14',
-                    viewBox: '0 0 24 24',
-                    fill: 'none',
-                    stroke: 'currentColor',
-                    strokeWidth: '2',
-                    strokeLinecap: 'round',
-                    strokeLinejoin: 'round'
-                  },
-                    React.createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
-                    React.createElement('polyline', { points: '17,8 12,3 7,8' }),
-                    React.createElement('line', { x1: '12', y1: '3', x2: '12', y2: '15' })
-                  ),
-                  'Exportar Equipamentos'
-                )
-              ),
-              React.createElement('button', {
-                onClick: () => {
-                  setShowOptionsMenu(false);
-                  // Aqui seria a lógica para configurações
-                  console.log('Configurações');
-                  // Aqui você pode implementar a lógica para abrir configurações
-                  alert('Abrir painel de configurações dos equipamentos');
-                },
-                style: {
-                  width: '100%',
-                  padding: '10px 16px',
-                  border: 'none',
-                  background: 'none',
-                  textAlign: 'left',
-                  fontSize: '12px',
-                  color: '#404040',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  borderRadius: '0 0 6px 6px'
-                },
-                onMouseEnter: (e) => {
-                  e.target.style.backgroundColor = 'rgba(245, 158, 11, 0.1)';
-                  e.target.style.color = '#f59e0b';
-                },
-                onMouseLeave: (e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.color = '#404040';
-                }
-              },
-                React.createElement('div', { 
-                  style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }
-                },
-                  React.createElement('svg', {
-                    width: '14',
-                    height: '14',
-                    viewBox: '0 0 24 24',
-                    fill: 'none',
-                    stroke: 'currentColor',
-                    strokeWidth: '2',
-                    strokeLinecap: 'round',
-                    strokeLinejoin: 'round'
-                  },
-                    React.createElement('circle', { cx: '12', cy: '12', r: '3' }),
-                    React.createElement('path', { d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z' })
-                  ),
-                  'Configurações'
-                )
-              )
-            )
-          )
-        ),
-        
-        // Indicador de carregamento
-        loading && React.createElement('div', {
-          style: {
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '40px',
-            color: '#737373',
-            fontSize: '14px'
-          }
-        },
-          React.createElement('div', {
-            style: {
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }
-          },
-            React.createElement('div', {
-              style: {
-                width: '20px',
-                height: '20px',
-                border: '2px solid #e5e5e5',
-                borderTop: '2px solid #7d26d9',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }
-            }),
-            'Carregando equipamentos...'
-          )
-        ),
+        {showAddModal && (
+          <ModalAdicionarEquipamento
+            isVisible={showAddModal}
+            onClose={handleFecharModais}
+            onSave={handleSaveEquipamento}
+          />
+        )}
 
-        // Mensagem de erro
-        error && React.createElement('div', {
-          style: {
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '40px',
-            color: '#ef4444',
-            fontSize: '14px',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            borderRadius: '8px',
-            margin: '20px 0'
-          }
-        },
-          React.createElement('div', {
-            style: {
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }
-          },
-            React.createElement('svg', {
-              width: '20',
-              height: '20',
-              viewBox: '0 0 24 24',
-              fill: 'none',
-              stroke: 'currentColor',
-              strokeWidth: '2',
-              strokeLinecap: 'round',
-              strokeLinejoin: 'round'
-            },
-              React.createElement('circle', { cx: '12', cy: '12', r: '10' }),
-              React.createElement('line', { x1: '15', y1: '9', x2: '9', y2: '15' }),
-              React.createElement('line', { x1: '9', y1: '9', x2: '15', y2: '15' })
-            ),
-            error
-          )
-        ),
+        {showEditModal && equipamentoParaEditar && (
+          <ModalEditarEquipamento
+            isVisible={showEditModal}
+            equipamento={equipamentoParaEditar}
+            onClose={handleFecharModais}
+            onSave={handleUpdateEquipamento}
+          />
+        )}
 
-        // Lista de equipamentos otimizada
-        !loading && !error && React.createElement('div', { 
-          style: {
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-            gap: '12px'
-          }
-        },
-          (() => {
-            console.log('🎨 RENDER: Renderizando lista de equipamentos...');
-            console.log('🎨 RENDER: Equipamentos filtrados para renderizar:', filteredEquipamentos?.length || 0);
-            console.log('🎨 RENDER: Dados dos equipamentos:', filteredEquipamentos);
-            
-            if (!filteredEquipamentos || filteredEquipamentos.length === 0) {
-              console.log('🎨 RENDER: Nenhum equipamento para renderizar');
-              return React.createElement('div', {
-                style: {
-                  gridColumn: '1 / -1',
-                  textAlign: 'center',
-                  padding: '40px',
-                  color: '#737373',
-                  fontSize: '14px'
-                }
-              }, 'Nenhum equipamento encontrado');
-            }
-            
-            return filteredEquipamentos.map((equipamento, index) => {
-              console.log(`🎨 RENDER: Renderizando equipamento ${index + 1}:`, equipamento.nome);
-              return React.createElement(EquipamentoCard, {
-                key: equipamento.id,
-                equipamento: equipamento,
-                onClick: handleEquipamentoClick,
-                onEdit: handleEditEquipamento,
-                onDelete: handleDeleteEquipamento
-              });
-            });
-          })()
-        )
-      )
-    ),
-    
-    // Modal de detalhes otimizado
-    React.createElement(EquipamentoModal, {
-      equipamento: selectedEquipamento,
-      isVisible: modalVisible,
-      onClose: closeModal,
-      onEdit: handleEditEquipamento,
-      onDelete: handleDeleteEquipamento
-    }),
-    
-    // Modal de adição de equipamento
-          React.createElement(ModalAdicionarEquipamento, {
-            isVisible: showAddModal,
-            onClose: () => {
-              console.log('Fechando modal');
-              setShowAddModal(false);
-            },
-            onSave: handleSaveEquipamento
-          }),
-          React.createElement(ModalEditarEquipamento, {
-            isVisible: showEditModal,
-            equipamento: equipamentoParaEditar,
-            onClose: () => {
-              console.log('Fechando modal de edição');
-              setShowEditModal(false);
-              setEquipamentoParaEditar(null);
-            },
-            onSave: handleSaveEditEquipamento
-          }),
-          
-          // Sistema de notificações
-          notifications.map(notification => 
-            React.createElement(Notification, {
-              key: notification.id,
-              message: notification.message,
-              type: notification.type,
-              duration: notification.duration,
-              onClose: () => removeNotification(notification.id)
-            })
-          )
+        {/* Notificações */}
+        {notifications.map((notification) => (
+          <Notification
+            key={notification.id}
+            notification={notification}
+            onClose={() => removeNotification(notification.id)}
+          />
+        ))}
+      </div>
+    </Layout>
   );
-}
+});
 
 export default Equipamentos;

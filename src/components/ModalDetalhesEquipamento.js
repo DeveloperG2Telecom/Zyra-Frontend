@@ -668,13 +668,17 @@ function ModalDetalhesEquipamento({ equipamento, onClose }) {
                     color: '#0369a1',
                     fontSize: '13px'
                   }
-                }, 'Localidade:'),
+                }, 'POP:'),
                 React.createElement('span', {
                   style: {
                     color: '#1e293b',
                     fontSize: '13px'
                   }
-                }, equipamento.localidade)
+                }, (typeof equipamento.pop === 'string' ? equipamento.pop : equipamento.pop?.nome) || 
+                    equipamento.localidade?.endereco || 
+                    equipamento.cidade || 
+                    equipamento.endereco?.cidade ||
+                    'Não informado')
               )
             ]
           )

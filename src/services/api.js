@@ -123,40 +123,22 @@ class ApiService {
     });
   }
 
-  // Métodos para equipamentos
-  async getEquipamentos(filters = {}) {
-    console.log('🔍 API: Buscando equipamentos - REQUISIÇÃO DIRETA SIMPLES');
-    
-    try {
-      const url = `${this.baseURL}/equipamentos`;
-      
-      console.log('🔍 API: URL:', url);
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      console.log('🔍 API: Status da resposta:', response.status);
-      
-      if (!response.ok) {
-        if (response.status === 429) {
-          throw new Error('Rate limit atingido. Aguarde alguns minutos.');
-        }
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log('🔍 API: Dados recebidos:', data);
-      console.log('🔍 API: Quantidade de equipamentos:', data?.data?.length || 0);
-      
-      return data;
-    } catch (error) {
-      console.error('🔍 API: Erro na requisição:', error);
-      throw error;
-    }
+  async logout() {
+    return this.request('/auth/logout', {
+      method: 'POST',
+    });
+  }
+
+  async getCurrentUser() {
+    return this.request('/auth/me');
+  }
+
+  // Métodos para equipamentos com paginação
+  async getEquipamentos(filters = {}, page = 1, limit = 20) {
+    return this.request('/equipamentos', {
+      method: 'GET',
+      params: { ...filters, page, limit }
+    });
   }
 
   async getEquipamentoById(id) {
@@ -166,6 +148,8 @@ class ApiService {
   async createEquipamento(equipamentoData) {
     console.log('🔍 API: Dados sendo enviados para criar equipamento:', equipamentoData);
     console.log('🔍 API: JSON stringify:', JSON.stringify(equipamentoData));
+    console.log('🔍 API: Tipo dos dados:', typeof equipamentoData);
+    console.log('🔍 API: Campos presentes:', Object.keys(equipamentoData));
     
     const result = await this.request('/equipamentos', {
       method: 'POST',
@@ -180,6 +164,8 @@ class ApiService {
 
   async updateEquipamento(id, equipamentoData) {
     console.log('🔍 API: Atualizando equipamento:', id, equipamentoData);
+    console.log('🔍 API: Tipo do ID:', typeof id);
+    console.log('🔍 API: ID é válido?', id && id !== 'undefined' && id !== 'null');
     
     try {
       const url = `${this.baseURL}/equipamentos/${id}`;
@@ -450,6 +436,8 @@ class ApiService {
   async getBackupsByEquipamento(equipamentoId) {
     return this.request(`/backups/equipamento/${equipamentoId}`);
   }
+
+  // Métodos para dashboard removidos - dashboard agora usa dados diretos dos equipamentos
 
   // Método para verificar saúde da API
   async healthCheck() {

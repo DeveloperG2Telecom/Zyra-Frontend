@@ -1,7 +1,24 @@
 import React, { useState } from 'react';
+import ModalConfirmacao from './ModalConfirmacao';
 
-const EquipamentoCard = ({ equipamento, onClick, onEdit, onDelete }) => {
+const EquipamentoCard = React.memo(({ equipamento, onClick, onEdit, onDelete }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  // Função para confirmar exclusão
+  const handleConfirmDelete = () => {
+    setShowConfirmModal(false);
+    if (onDelete) {
+      onDelete(equipamento.id);
+    } else {
+      console.log('Deletar equipamento:', equipamento.id);
+    }
+  };
+
+  // Função para cancelar exclusão
+  const handleCancelDelete = () => {
+    setShowConfirmModal(false);
+  };
 
   // Fechar menu quando clicar fora
   React.useEffect(() => {
@@ -28,6 +45,8 @@ const EquipamentoCard = ({ equipamento, onClick, onEdit, onDelete }) => {
       border: '1px solid rgba(125, 38, 217, 0.1)',
       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
       transition: 'all 0.2s ease',
+      position: 'relative',
+      zIndex: 1,
       '&:hover': {
         transform: 'translateY(-2px)',
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
@@ -107,8 +126,12 @@ const EquipamentoCard = ({ equipamento, onClick, onEdit, onDelete }) => {
             fontWeight: '500',
             color: '#404040'
           }
-        }, 'Local: '),
-        equipamento.localidade?.endereco || equipamento.localidade || 'Não informado'
+        }, 'POP: '),
+        (typeof equipamento.pop === 'string' ? equipamento.pop : equipamento.pop?.nome) || 
+        equipamento.localidade?.endereco || 
+        equipamento.cidade || 
+        equipamento.endereco?.cidade ||
+        'Não informado'
       )
     ),
     
@@ -222,7 +245,7 @@ const EquipamentoCard = ({ equipamento, onClick, onEdit, onDelete }) => {
               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
               border: '1px solid rgba(125, 38, 217, 0.1)',
               minWidth: '120px',
-              zIndex: 1000,
+              zIndex: 9999,
               overflow: 'hidden'
             }
           },
@@ -280,14 +303,7 @@ const EquipamentoCard = ({ equipamento, onClick, onEdit, onDelete }) => {
               onClick: (e) => {
                 e.stopPropagation();
                 setShowMenu(false);
-                if (window.confirm(`Tem certeza que deseja deletar o equipamento "${equipamento.nome}"?\n\nEsta ação não pode ser desfeita.`)) {
-                  if (onDelete) {
-                    onDelete(equipamento.id);
-                  } else {
-                    console.log('Deletar equipamento:', equipamento.id);
-                    alert(`Equipamento "${equipamento.nome}" será deletado!`);
-                  }
-                }
+                setShowConfirmModal(true);
               },
               style: {
                 width: '100%',
@@ -332,8 +348,20 @@ const EquipamentoCard = ({ equipamento, onClick, onEdit, onDelete }) => {
           )
         )
       )
-    )
+    ),
+    
+    // Modal de confirmação
+    React.createElement(ModalConfirmacao, {
+      isVisible: showConfirmModal,
+      title: 'Confirmar Exclusão',
+      message: `Tem certeza que deseja deletar o equipamento "${equipamento.nome}"?\n\nEsta ação não pode ser desfeita.`,
+      onConfirm: handleConfirmDelete,
+      onCancel: handleCancelDelete,
+      confirmText: 'Deletar',
+      cancelText: 'Cancelar',
+      type: 'danger'
+    })
   );
-};
+});
 
 export default EquipamentoCard;

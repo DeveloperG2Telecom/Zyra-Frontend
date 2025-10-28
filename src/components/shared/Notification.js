@@ -107,10 +107,6 @@ const Notification = ({ message, type = 'success', duration = 3000, onClose }) =
 
   return React.createElement('div', {
     style: {
-      position: 'fixed',
-      top: '20px',
-      right: '20px',
-      zIndex: 9999,
       transform: animating ? 'translateX(0)' : 'translateX(100%)',
       opacity: animating ? 1 : 0,
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -131,8 +127,7 @@ const Notification = ({ message, type = 'success', duration = 3000, onClose }) =
         color: 'white',
         fontSize: '14px',
         fontWeight: '500',
-        backdropFilter: 'blur(10px)',
-        border: `1px solid rgba(255, 255, 255, 0.2)`
+        backdropFilter: 'blur(10px)'
       }
     },
       React.createElement('div', {

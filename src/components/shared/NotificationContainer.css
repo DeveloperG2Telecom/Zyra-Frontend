@@ -1,0 +1,69 @@
+/* Estilos para o container de notificações */
+
+.notification-container {
+  position: fixed;
+  top: 80px; /* Abaixo do cabeçalho (60px + 20px de margem) */
+  right: 20px;
+  z-index: 10000; /* Maior que o navbar (1000) */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 400px;
+  pointer-events: none; /* Permite cliques passarem através do container */
+}
+
+.notification-item {
+  pointer-events: auto; /* Reabilita cliques apenas nas notificações */
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.notification-item.removing {
+  animation: slideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .notification-container {
+    top: 70px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+  
+  .notification-item {
+    min-width: auto;
+    max-width: none;
+  }
+}
+
+/* Garantir que as notificações fiquem sempre visíveis */
+.notification-container * {
+  box-sizing: border-box;
+}
+
+/* Sombra para destacar as notificações */
+.notification-item {
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), 0 4px 6px rgba(0, 0, 0, 0.1);
+}

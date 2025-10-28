@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Layout from './shared/Layout';
+import { useEquipamentos } from '../hooks/useEquipamentos';
 
 function Monitoramento() {
   const [equipamentoSelecionado, setEquipamentoSelecionado] = useState(null);
@@ -7,81 +8,31 @@ function Monitoramento() {
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [dadosMonitoramento, setDadosMonitoramento] = useState({});
 
-  // Dados mock dos equipamentos com métricas de monitoramento
-  const equipamentos = [
-    {
-      id: 1,
-      nome: 'Router Principal - Matriz',
-      ipPrivado: '192.168.1.1',
-      localidade: 'São Paulo - SP',
-      status: 'online',
-      ultimoPing: new Date().toISOString(),
-      latencia: Math.floor(Math.random() * 20) + 5,
-      cpu: Math.floor(Math.random() * 30) + 10,
-      memoria: Math.floor(Math.random() * 40) + 20,
-      temperatura: Math.floor(Math.random() * 15) + 45,
-      uptime: '15 dias, 8 horas'
-    },
-    {
-      id: 2,
-      nome: 'Switch Core - Data Center',
-      ipPrivado: '192.168.1.2',
-      localidade: 'São Paulo - SP',
-      status: 'online',
-      ultimoPing: new Date().toISOString(),
-      latencia: Math.floor(Math.random() * 15) + 3,
-      cpu: Math.floor(Math.random() * 25) + 5,
-      memoria: Math.floor(Math.random() * 30) + 15,
-      temperatura: Math.floor(Math.random() * 10) + 40,
-      uptime: '22 dias, 12 horas'
-    },
-    {
-      id: 3,
-      nome: 'AP WiFi - Piso 1',
-      ipPrivado: '192.168.1.10',
-      localidade: 'São Paulo - SP',
-      status: 'atencao',
-      ultimoPing: new Date().toISOString(),
-      latencia: Math.floor(Math.random() * 50) + 20,
-      cpu: Math.floor(Math.random() * 60) + 30,
-      memoria: Math.floor(Math.random() * 50) + 40,
-      temperatura: Math.floor(Math.random() * 20) + 50,
-      uptime: '8 dias, 3 horas'
-    },
-    {
-      id: 4,
-      nome: 'Router Filial - Rio',
-      ipPrivado: '192.168.2.1',
-      localidade: 'Rio de Janeiro - RJ',
-      status: 'online',
-      ultimoPing: new Date().toISOString(),
-      latencia: Math.floor(Math.random() * 30) + 10,
-      cpu: Math.floor(Math.random() * 35) + 15,
-      memoria: Math.floor(Math.random() * 35) + 25,
-      temperatura: Math.floor(Math.random() * 12) + 42,
-      uptime: '12 dias, 6 horas'
-    },
-    {
-      id: 5,
-      nome: 'Switch Edge - Filial BH',
-      ipPrivado: '192.168.3.1',
-      localidade: 'Belo Horizonte - MG',
-      status: 'offline',
-      ultimoPing: null,
-      latencia: null,
-      cpu: null,
-      memoria: null,
-      temperatura: null,
-      uptime: '0 dias, 0 horas'
-    }
-  ];
+  // Usar hook para buscar equipamentos reais
+  const { equipamentos, loading, error } = useEquipamentos();
+
+  // Dados mock apenas para métricas de monitoramento (que não existem no banco ainda)
+  const equipamentosComMetricas = equipamentos.map(equipamento => ({
+    ...equipamento,
+    ultimoPing: new Date().toISOString(),
+    latencia: Math.floor(Math.random() * 20) + 5,
+    cpu: Math.floor(Math.random() * 30) + 10,
+    memoria: Math.floor(Math.random() * 40) + 20,
+    temperatura: Math.floor(Math.random() * 15) + 45,
+    uptime: `${Math.floor(Math.random() * 30) + 1} dias, ${Math.floor(Math.random() * 24)} horas`,
+    localidade: (typeof equipamento.pop === 'string' ? equipamento.pop : equipamento.pop?.nome) || 
+                equipamento.localidade?.endereco || 
+                equipamento.cidade || 
+                equipamento.endereco?.cidade ||
+                'Local não informado'
+  }));
 
   // Simular atualização periódica dos dados
   useEffect(() => {
     const interval = setInterval(() => {
       setDadosMonitoramento(prev => {
         const novosDados = {};
-        equipamentos.forEach(equipamento => {
+        equipamentosComMetricas.forEach(equipamento => {
           if (equipamento.status !== 'offline') {
             novosDados[equipamento.id] = {
               latencia: Math.floor(Math.random() * 30) + 5,
@@ -97,7 +48,7 @@ function Monitoramento() {
     }, 5000); // Atualiza a cada 5 segundos
 
     return () => clearInterval(interval);
-  }, []);
+  }, [equipamentosComMetricas]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -689,7 +640,7 @@ function Monitoramento() {
                       color: '#737373',
                       margin: 0
                     }
-                  }, `${equipamento.ipPrivado} • ${equipamento.localidade}`)
+                  }, `${equipamento.ipPrivado} • ${equipamento.localidade?.endereco || equipamento.cidade || 'Local não informado'}`)
                 ),
                 React.createElement('div', { 
                   style: {
