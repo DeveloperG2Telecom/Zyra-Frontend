@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Layout from './shared/Layout';
+import ModalEditarEquipamento from './shared/ModalEditarEquipamento';
 import { useEquipamentos } from '../hooks/useEquipamentos';
 import { FiRefreshCw, FiMaximize2, FiMinimize2, FiInfo, FiEdit3, FiSave, FiX, FiRotateCcw, FiDownload, FiUpload } from 'react-icons/fi';
 import api from '../services/api';
@@ -22,6 +23,8 @@ const TopologiaRede = () => {
   const [showConnections, setShowConnections] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [showGrid, setShowGrid] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [equipamentoParaEditar, setEquipamentoParaEditar] = useState(null);
   
   // Refs para controle de animações
   const containerRef = useRef(null);
@@ -29,7 +32,7 @@ const TopologiaRede = () => {
   const autoSaveTimeoutRef = useRef(null);
 
   // Usar hook de equipamentos
-  const { equipamentos, loading, error, loadEquipamentos } = useEquipamentos();
+  const { equipamentos, loading, error, loadEquipamentos, updateEquipamento, refreshEquipamentos } = useEquipamentos();
 
   // Carregar equipamentos apenas se não há dados
   useEffect(() => {
@@ -42,64 +45,36 @@ const TopologiaRede = () => {
 
   // Layout simples - sem funções de edição complexas
 
-  // Event listeners simples para zoom e pan
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+  // Handlers simples de zoom e pan via props do container
+  const handleWheel = useCallback((e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setZoom(prev => Math.max(0.3, Math.min(3, prev * delta)));
+  }, []);
 
-    const handleWheelEvent = (e) => {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      setZoom(prev => Math.max(0.3, Math.min(3, prev * delta)));
-    };
+  const handleMouseDown = useCallback((e) => {
+    if (e.target.closest('[data-equipment]')) return;
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+  }, [pan.x, pan.y]);
 
-    const handleMouseDownEvent = (e) => {
-      // Não iniciar drag se clicou em um equipamento
-      if (e.target.closest('[data-equipment]')) {
-        return;
-      }
-      
-      if (e.target === container || e.target.closest('.topology-container')) {
-        e.preventDefault();
-        setIsDragging(true);
-        setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-      }
-    };
+  const handleMouseMove = useCallback((e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+  }, [isDragging, dragStart.x, dragStart.y]);
 
-    const handleMouseMoveEvent = (e) => {
-      if (isDragging) {
-        e.preventDefault();
-        setPan({
-          x: e.clientX - dragStart.x,
-          y: e.clientY - dragStart.y
-        });
-      }
-    };
-
-    const handleMouseUpEvent = () => {
-      setIsDragging(false);
-    };
-
-    container.addEventListener('wheel', handleWheelEvent, { passive: false });
-    container.addEventListener('mousedown', handleMouseDownEvent, { passive: false });
-    document.addEventListener('mousemove', handleMouseMoveEvent, { passive: false });
-    document.addEventListener('mouseup', handleMouseUpEvent, { passive: false });
-    document.addEventListener('mouseleave', handleMouseUpEvent, { passive: false });
-
-    return () => {
-      container.removeEventListener('wheel', handleWheelEvent);
-      container.removeEventListener('mousedown', handleMouseDownEvent);
-      document.removeEventListener('mousemove', handleMouseMoveEvent);
-      document.removeEventListener('mouseup', handleMouseUpEvent);
-      document.removeEventListener('mouseleave', handleMouseUpEvent);
-    };
-  }, [isDragging, dragStart, pan]);
+  const handleMouseUp = useCallback(() => {
+    if (!isDragging) return;
+    setIsDragging(false);
+  }, [isDragging]);
 
   // Layout simples - sem edição de posições
 
   // Processar dados para topologia
   const topologiaData = useMemo(() => {
-    if (!equipamentos || equipamentos.length === 0) return { nodes: [], connections: [], levels: [] };
+    if (!equipamentos || equipamentos.length === 0) return { nodes: [], connections: [], levels: [], pops: [] };
 
     // Criar nós dos equipamentos
     const nodes = equipamentos.map((equipamento, index) => {
@@ -124,6 +99,26 @@ const TopologiaRede = () => {
         y: 0
       };
     });
+
+    // Agrupar equipamentos por POP
+    const popGroups = {};
+    nodes.forEach(node => {
+      if (!popGroups[node.pop]) {
+        popGroups[node.pop] = [];
+      }
+      popGroups[node.pop].push(node);
+    });
+
+    // Criar grupos de POPs
+    const pops = Object.keys(popGroups).map((popName, index) => ({
+      id: `pop-${index}`,
+      nome: popName,
+      equipamentos: popGroups[popName],
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0
+    }));
 
     // Criar conexões baseadas nos campos de equipamento anterior e posterior
     const connections = [];
@@ -179,107 +174,126 @@ const TopologiaRede = () => {
       }
     });
 
-    // Layout simples e organizado como na imagem
+    // Layout organizado por POPs
     const containerWidth = 1200;
-    const containerHeight = 800;
-    const margin = 100;
-    const nodeSpacing = 150; // Espaçamento mínimo entre nós
+    const containerHeight = 600;
+    const margin = 80;
+    const popSpacing = 200; // Espaçamento entre POPs
+    const nodeSpacing = 100; // Espaçamento entre equipamentos dentro do POP
+    const popPadding = 40; // Padding interno do POP
 
-    // Função para calcular posição em grade
-    const getGridPosition = (index, totalNodes) => {
-      const cols = Math.ceil(Math.sqrt(totalNodes));
-      const rows = Math.ceil(totalNodes / cols);
-      
-      const col = index % cols;
-      const row = Math.floor(index / cols);
-      
-      const startX = margin + (containerWidth - margin * 2 - (cols - 1) * nodeSpacing) / 2;
-      const startY = margin + (containerHeight - margin * 2 - (rows - 1) * nodeSpacing) / 2;
-      
-      return {
-        x: startX + col * nodeSpacing,
-        y: startY + row * nodeSpacing
-      };
-    };
+    // Função para calcular posição dos equipamentos dentro de um POP
+    const getPopLayout = (equipamentos, popIndex, totalPops) => {
+      const equipamentosCount = equipamentos.length;
+      if (equipamentosCount === 0) return;
 
-    // Função para layout em rede mesh simples
-    const createMeshLayout = (nodes) => {
-      const totalNodes = nodes.length;
-      
-      if (totalNodes <= 1) {
-        // Se há apenas 1 nó, centralizar
-        nodes[0].x = containerWidth / 2;
-        nodes[0].y = containerHeight / 2;
-        return;
-      }
-      
-      if (totalNodes <= 4) {
-        // Para poucos nós, usar layout em quadrado
-        const positions = [
-          { x: containerWidth * 0.3, y: containerHeight * 0.3 },
-          { x: containerWidth * 0.7, y: containerHeight * 0.3 },
-          { x: containerWidth * 0.3, y: containerHeight * 0.7 },
-          { x: containerWidth * 0.7, y: containerHeight * 0.7 }
-        ];
-        
-        nodes.forEach((node, index) => {
-          if (positions[index]) {
-            node.x = positions[index].x;
-            node.y = positions[index].y;
-          }
-        });
-        return;
-      }
-      
-      // Para mais nós, usar layout em grade com espaçamento
-      nodes.forEach((node, index) => {
-        const pos = getGridPosition(index, totalNodes);
-        node.x = pos.x;
-        node.y = pos.y;
+      // Calcular dimensões do POP baseado no número de equipamentos
+      const cols = Math.max(1, Math.ceil(Math.sqrt(equipamentosCount)));
+      const rows = Math.max(1, Math.ceil(equipamentosCount / cols));
+
+      const popWidth = Math.max(220, cols * nodeSpacing + popPadding * 2);
+      const popHeight = Math.max(180, rows * nodeSpacing + popPadding * 2);
+
+      // Posição do POP na tela
+      const popsPerRow = Math.max(1, Math.ceil(Math.sqrt(totalPops)));
+      const popRow = Math.floor(popIndex / popsPerRow);
+      const popCol = popIndex % popsPerRow;
+
+      const popX = margin + popCol * (popWidth + popSpacing);
+      const popY = margin + popRow * (popHeight + popSpacing);
+
+      // Atualizar dimensões do POP
+      const pop = pops[popIndex];
+      pop.x = popX;
+      pop.y = popY;
+      pop.width = popWidth;
+      pop.height = popHeight;
+
+      // Posicionar equipamentos dentro do POP (coordenadas absolutas)
+      equipamentos.forEach((equipamento, index) => {
+        const col = index % cols;
+        const row = Math.floor(index / cols);
+        equipamento.x = popX + popPadding + col * nodeSpacing;
+        equipamento.y = popY + popPadding + row * nodeSpacing;
       });
     };
 
-    // Aplicar layout
-    createMeshLayout(nodes);
+    // Aplicar layout para cada POP
+    pops.forEach((pop, index) => {
+      getPopLayout(pop.equipamentos, index, pops.length);
+    });
 
-    // Ajustar posições para evitar sobreposição
-    const adjustPositions = () => {
-      const minDistance = nodeSpacing;
-      const maxIterations = 5;
-      
-      for (let iter = 0; iter < maxIterations; iter++) {
-        let hasOverlap = false;
-        
-        for (let i = 0; i < nodes.length; i++) {
-          for (let j = i + 1; j < nodes.length; j++) {
-            const node1 = nodes[i];
-            const node2 = nodes[j];
-            
-            const dx = node2.x - node1.x;
-            const dy = node2.y - node1.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance < minDistance && distance > 0) {
-              hasOverlap = true;
-              const separation = (minDistance - distance) / 2;
-              const angle = Math.atan2(dy, dx);
-              
-              // Mover os nós em direções opostas
-              node1.x -= Math.cos(angle) * separation * 0.5;
-              node1.y -= Math.sin(angle) * separation * 0.5;
-              node2.x += Math.cos(angle) * separation * 0.5;
-              node2.y += Math.sin(angle) * separation * 0.5;
-            }
-          }
+    // Calcular direção média das conexões externas por POP
+    const nodeIdToPop = new Map();
+    pops.forEach(pop => {
+      pop.equipamentos.forEach(eq => nodeIdToPop.set(eq.id, pop));
+    });
+
+    const getRectIntersection = (rx, ry, rw, rh, x1, y1, x2, y2) => {
+      // Parametric line clipping (Liang–Barsky simplificado)
+      const left = rx, right = rx + rw, top = ry, bottom = ry + rh;
+      const dx = x2 - x1, dy = y2 - y1;
+      let t0 = 0, t1 = 1;
+      const clip = (p, q) => {
+        if (p === 0) return q < 0 ? false : true;
+        const r = q / p;
+        if (p < 0) {
+          if (r > t1) return false; if (r > t0) t0 = r;
+        } else {
+          if (r < t0) return false; if (r < t1) t1 = r;
         }
-        
-        if (!hasOverlap) break;
-      }
+        return true;
+      };
+      if (!clip(-dx, x1 - left)) return null;
+      if (!clip(dx, right - x1)) return null;
+      if (!clip(-dy, y1 - top)) return null;
+      if (!clip(dy, bottom - y1)) return null;
+      const ix = x1 + dx * t1;
+      const iy = y1 + dy * t1;
+      return { x: ix, y: iy };
     };
 
-    adjustPositions();
+    pops.forEach(pop => {
+      // Alvos: centros dos nós conectados fora deste POP
+      const targets = [];
+      pop.equipamentos.forEach(node => {
+        connections.forEach(conn => {
+          if (conn.from === node.id || conn.to === node.id) {
+            const otherId = conn.from === node.id ? conn.to : conn.from;
+            const otherNode = nodes.find(n => n.id === otherId);
+            if (!otherNode) return;
+            const otherPop = nodeIdToPop.get(otherId);
+            if (!otherPop || otherPop === pop) return; // apenas conexões externas
+            targets.push({ x: otherNode.x, y: otherNode.y });
+          }
+        });
+      });
 
-    return { nodes, connections };
+      if (targets.length === 0) {
+        pop.arrow = null;
+        return;
+      }
+
+      // Centro do POP
+      const cx = pop.x + pop.width / 2;
+      const cy = pop.y + pop.height / 2;
+
+      // Média dos alvos
+      const avg = targets.reduce((acc, t) => ({ x: acc.x + t.x, y: acc.y + t.y }), { x: 0, y: 0 });
+      const tx = avg.x / targets.length;
+      const ty = avg.y / targets.length;
+
+      const inter = getRectIntersection(pop.x, pop.y, pop.width, pop.height, cx, cy, tx, ty);
+      if (!inter) {
+        pop.arrow = null;
+        return;
+      }
+
+      const angle = Math.atan2(ty - cy, tx - cx) * 180 / Math.PI; // graus
+      pop.arrow = { x: inter.x, y: inter.y, angle };
+    });
+
+    return { nodes, connections, pops };
   }, [equipamentos]);
 
   // Função para calcular interseção da linha com a borda do equipamento
@@ -434,6 +448,29 @@ const TopologiaRede = () => {
             </button>
             
             <button
+              onClick={() => {
+                // Ajustar zoom e pan para mostrar todos os equipamentos
+                if (topologiaData.pops.length > 0) {
+                  const containerWidth = 1200;
+                  const containerHeight = 600;
+                  const viewportWidth = isFullscreen ? window.innerWidth - 32 : 1200;
+                  const viewportHeight = isFullscreen ? window.innerHeight - 32 : 600;
+                  
+                  const scaleX = viewportWidth / containerWidth;
+                  const scaleY = viewportHeight / containerHeight;
+                  const newZoom = Math.min(scaleX, scaleY) * 0.9; // 90% para dar margem
+                  
+                  setZoom(newZoom);
+                  setPan({ x: 0, y: 0 });
+                }
+              }}
+              className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white"
+            >
+              <FiRotateCcw className="w-4 h-4" />
+              <span>Ajustar Visualização</span>
+            </button>
+            
+            <button
               onClick={() => setIsFullscreen(!isFullscreen)}
               className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white"
             >
@@ -483,10 +520,15 @@ const TopologiaRede = () => {
         <div 
           ref={containerRef}
           id="topology-container"
-          className={`bg-white/95 backdrop-blur-custom rounded-xl border border-purple-100 shadow-lg relative overflow-hidden topology-bg ${
+          className={`bg-white/95 backdrop-blur-custom rounded-xl border border-purple-100 shadow-lg relative overflow-hidden topology-bg topology-container ${
             isFullscreen ? 'fixed inset-4 z-50' : ''
           } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           style={{ height: isFullscreen ? 'calc(100vh - 2rem)' : '600px' }}
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
         >
           {/* Grade de fundo */}
           {showGrid && (
@@ -504,7 +546,7 @@ const TopologiaRede = () => {
           {/* SVG para conexões simples */}
           <svg
             className="absolute inset-0 w-full h-full pointer-events-none"
-            style={{ zIndex: 1 }}
+            style={{ zIndex: 2 }}
           >
 
             {/* Definir marcadores de seta */}
@@ -553,61 +595,77 @@ const TopologiaRede = () => {
             })}
           </svg>
 
-          {/* Equipamentos simples */}
-          {topologiaData.nodes.map(node => {
-            return (
-              <div
-                key={node.id}
-                data-equipment={node.id}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log('🖱️ Equipamento clicado:', node.nome);
-                  setSelectedEquipment(node);
-                }}
-                className="absolute transition-all duration-300 cursor-pointer hover:scale-105"
-                style={{
-                  left: node.x * zoom + pan.x - 40,
-                  top: node.y * zoom + pan.y - 40,
-                  width: '80px',
-                  height: '80px',
-                  zIndex: 2
-                }}
-              >
+          {/* POPs */}
+          {topologiaData.pops.map(pop => (
+            <div
+              key={pop.id}
+              className="absolute border-2 border-purple-300 rounded-lg bg-purple-50/80 backdrop-blur-sm"
+              style={{
+                left: pop.x * zoom + pan.x,
+                top: pop.y * zoom + pan.y,
+                width: pop.width * zoom,
+                height: pop.height * zoom,
+                zIndex: 1
+              }}
+            >
+              {/* Título do POP */}
+              <div className="absolute -top-6 left-0 bg-purple-600 text-white px-2 py-1 rounded text-xs font-semibold">
+                {pop.nome}
+              </div>
+
+              {/* Equipamentos do POP */}
+              {pop.equipamentos.map(node => (
                 <div
-                  className="bg-white rounded-lg border-2 shadow-lg p-2 h-full flex flex-col items-center justify-center text-center"
+                  key={node.id}
+                  data-equipment={node.id}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🖱️ Equipamento clicado:', node.nome);
+                    setSelectedEquipment(node);
+                  }}
+                  className="absolute transition-all duration-300 cursor-pointer hover:scale-105"
                   style={{
-                    borderColor: getStatusColor(node.status),
-                    background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'
+                    left: (node.x - pop.x) * zoom - 30,
+                    top: (node.y - pop.y) * zoom - 30,
+                    width: '60px',
+                    height: '60px',
+                    zIndex: 3
                   }}
                 >
-                  {/* Ícone do equipamento */}
-                  <div className="text-xl mb-1">
-                    {getEquipmentIcon(node.tipo)}
-                  </div>
-                  
-                  {/* Nome do equipamento */}
-                  <div 
-                    className="font-bold text-gray-800 text-xs leading-tight text-center"
-                    title={node.nome}
-                  >
-                    {node.nome.length > 8 ? node.nome.substring(0, 8) + '...' : node.nome}
-                  </div>
-                  
-                  {/* Status */}
-                  <div 
-                    className="text-xs font-semibold mt-1 px-2 py-0.5 rounded-full"
-                    style={{ 
-                      color: getStatusColor(node.status),
-                      backgroundColor: `${getStatusColor(node.status)}20`
+                  <div
+                    className="bg-white rounded-lg border-2 shadow-lg p-1 h-full flex flex-col items-center justify-center text-center"
+                    style={{
+                      borderColor: getStatusColor(node.status),
+                      background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'
                     }}
                   >
-                    {getStatusText(node.status)}
+                    {/* Ícone do equipamento */}
+                    <div className="text-lg mb-1">
+                      {getEquipmentIcon(node.tipo)}
+                    </div>
+                    
+                    {/* Nome do equipamento */}
+                  <div 
+                    className="font-bold text-gray-800 text-[8px] leading-tight text-center break-words"
+                    title={node.nome}
+                  >
+                    {node.nome}
+                  </div>
+                    
+                    {/* Status - apenas cor, sem texto */}
+                    <div 
+                      className="w-1.5 h-1.5 rounded-full mt-0.5"
+                      style={{ 
+                        backgroundColor: getStatusColor(node.status)
+                      }}
+                      title={getStatusText(node.status)}
+                    />
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          ))}
 
           {/* Legenda simples */}
           <div className="absolute top-4 right-4 bg-white/95 rounded-xl p-3 shadow-xl z-10 max-w-48">
@@ -616,15 +674,15 @@ const TopologiaRede = () => {
             {/* Status dos equipamentos */}
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <span className="text-xs text-gray-700">Online</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
                 <span className="text-xs text-gray-700">Atenção</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                 <span className="text-xs text-gray-700">Offline</span>
               </div>
               <div className="flex items-center space-x-2 mt-2">
@@ -632,6 +690,10 @@ const TopologiaRede = () => {
                   <div className="absolute right-0 top-0 w-0 h-0 border-l-4 border-l-purple-500 border-t-2 border-b-2 border-t-transparent border-b-transparent"></div>
                 </div>
                 <span className="text-xs text-gray-700">Conexão</span>
+              </div>
+              <div className="flex items-center space-x-2 mt-2">
+                <div className="w-4 h-4 border-2 border-purple-300 rounded bg-purple-50/80"></div>
+                <span className="text-xs text-gray-700">POP</span>
               </div>
             </div>
           </div>
@@ -668,11 +730,15 @@ const TopologiaRede = () => {
                 <span className="text-lg">🔍</span>
                 <span>Scroll para zoom</span>
               </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-lg">📦</span>
+                <span>Equipamentos agrupados por POP</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Modal de detalhes do equipamento - Versão Simples para Debug */}
+        {/* Modal de detalhes do equipamento */}
         {selectedEquipment && (
           <div 
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -711,9 +777,21 @@ const TopologiaRede = () => {
                   <label className="text-sm font-semibold text-gray-600">POP:</label>
                   <p className="text-gray-900">{selectedEquipment.pop}</p>
                 </div>
+
+                
               </div>
               
               <div className="mt-6 flex space-x-3">
+                <button
+                  onClick={() => {
+                    setEquipamentoParaEditar(selectedEquipment);
+                    setShowEditModal(true);
+                    setSelectedEquipment(null);
+                  }}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                >
+                  Editar
+                </button>
                 <button
                   onClick={() => setSelectedEquipment(null)}
                   className="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
@@ -723,6 +801,27 @@ const TopologiaRede = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Modal de edição - mesmo usado na tela de Equipamentos */}
+        {showEditModal && equipamentoParaEditar && (
+          <ModalEditarEquipamento
+            isVisible={showEditModal}
+            equipamento={equipamentoParaEditar}
+            onClose={() => { setShowEditModal(false); setEquipamentoParaEditar(null); }}
+            onSave={async (id, data) => {
+              try {
+                const resp = await updateEquipamento(id, data);
+                if (resp?.success) {
+                  setShowEditModal(false);
+                  setEquipamentoParaEditar(null);
+                  await refreshEquipamentos();
+                }
+              } catch (e) {
+                console.error('Erro ao atualizar equipamento pela Topologia:', e);
+              }
+            }}
+          />
         )}
       </div>
     </Layout>
