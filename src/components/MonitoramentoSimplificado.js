@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Layout from './shared/Layout';
-import ModalDetalhesEquipamento from './ModalDetalhesEquipamento';
+import ModalDetalhesMonitoramento from './ModalDetalhesMonitoramento';
 import api from '../services/api';
 
 // Funções utilitárias locais
@@ -25,21 +25,10 @@ const getStatusText = (status) => {
 const getMetricaColor = (valor, tipo) => {
   switch (tipo) {
     case 'latencia':
-      if (valor < 20) return '#10b981';
-      if (valor < 50) return '#f59e0b';
-      return '#ef4444';
-    case 'cpu':
-      if (valor < 50) return '#10b981';
-      if (valor < 80) return '#f59e0b';
-      return '#ef4444';
-    case 'memoria':
-      if (valor < 60) return '#10b981';
-      if (valor < 85) return '#f59e0b';
-      return '#ef4444';
-    case 'temperatura':
-      if (valor < 50) return '#10b981';
-      if (valor < 70) return '#f59e0b';
-      return '#ef4444';
+      if (valor >= 1 && valor <= 20) return '#10b981'; // Verde
+      if (valor >= 21 && valor <= 30) return '#f59e0b'; // Laranja
+      if (valor >= 31) return '#ef4444'; // Vermelho
+      return '#6b7280'; // Cinza para valores inválidos ou 0
     default: return '#6b7280';
   }
 };
@@ -54,6 +43,8 @@ function MonitoramentoSimplificado() {
   const [equipamentos, setEquipamentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [tempoRestante, setTempoRestante] = useState(30); // Contador regressivo em segundos
+  const [executandoPing, setExecutandoPing] = useState(false); // Indica se o ping está sendo executado
 
   // Carregar equipamentos da API
   useEffect(() => {
@@ -77,34 +68,73 @@ function MonitoramentoSimplificado() {
     loadEquipamentos();
   }, []);
 
-  // Simular atualização periódica dos dados
+  // Buscar dados reais de monitoramento a cada 30 segundos
   useEffect(() => {
     if (!Array.isArray(equipamentos) || equipamentos.length === 0) return;
     
-    const interval = setInterval(() => {
-      setDadosMonitoramento(prev => {
-        const novosDados = {};
-        equipamentos.forEach(equipamento => {
-          if (equipamento.status !== 'offline') {
-            novosDados[equipamento.id] = {
-              latencia: Math.floor(Math.random() * 30) + 5,
-              cpu: Math.floor(Math.random() * 40) + 10,
-              memoria: Math.floor(Math.random() * 50) + 20,
-              temperatura: Math.floor(Math.random() * 20) + 40,
-              ultimoPing: new Date().toISOString()
+    // Função para buscar dados de monitoramento
+    const buscarDadosMonitoramento = async () => {
+      try {
+        setExecutandoPing(true); // Indicar que o ping está sendo executado
+        const response = await api.getDadosMonitoramento();
+        if (response.success && response.data && response.data.dados) {
+          // Converter dados para o formato esperado pelo componente
+          const novosDados = {};
+          Object.keys(response.data.dados).forEach(equipamentoId => {
+            const dados = response.data.dados[equipamentoId];
+            novosDados[equipamentoId] = {
+              latencia: dados.latencia || 0,
+              online: dados.online || false,
+              ultimoPing: dados.ultimoPing || new Date().toISOString(),
+              erro: dados.erro || null
             };
-          }
-        });
-        return { ...prev, ...novosDados };
-      });
-    }, 5000);
+          });
+          
+          setDadosMonitoramento(prev => ({ ...prev, ...novosDados }));
+        }
+        setTempoRestante(30); // Resetar contador para 30 segundos
+      } catch (error) {
+        console.error('Erro ao buscar dados de monitoramento:', error);
+      } finally {
+        setExecutandoPing(false); // Indicar que o ping terminou
+      }
+    };
+    
+    // Buscar imediatamente
+    buscarDadosMonitoramento();
+    
+    // Buscar a cada 30 segundos (mesmo intervalo do backend)
+    const interval = setInterval(buscarDadosMonitoramento, 30000);
 
     return () => clearInterval(interval);
   }, [equipamentos]);
 
+  // Contador regressivo a cada segundo (não decrementa enquanto ping está executando)
+  useEffect(() => {
+    const contadorInterval = setInterval(() => {
+      setTempoRestante(prev => {
+        // Não decrementar se o ping está sendo executado
+        if (executandoPing) {
+          return prev;
+        }
+        if (prev <= 1) {
+          return 30; // Resetar para 30 quando chegar a 0
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(contadorInterval);
+  }, [executandoPing]);
+
   const equipamentosFiltrados = Array.isArray(equipamentos) ? equipamentos.filter(equipamento => {
-    const matchesStatus = filtroStatus === 'todos' || equipamento.status === filtroStatus;
-    const matchesTipo = filtroTipo === 'todos' || equipamento.modelo.toLowerCase().includes(filtroTipo.toLowerCase());
+    const statusReal = dadosMonitoramento[equipamento.id] 
+      ? (dadosMonitoramento[equipamento.id].online ? 
+          (dadosMonitoramento[equipamento.id].latencia > 0 && dadosMonitoramento[equipamento.id].latencia < 50 ? 'online' : 'atencao') 
+          : 'offline')
+      : (equipamento.status?.toLowerCase() || 'offline');
+    const matchesStatus = filtroStatus === 'todos' || statusReal === filtroStatus;
+    const matchesTipo = filtroTipo === 'todos' || (equipamento.tipo && equipamento.tipo.toLowerCase() === filtroTipo.toLowerCase());
     const matchesSearch = searchTerm === '' || 
       equipamento.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
       equipamento.ipPrivado.includes(searchTerm) ||
@@ -112,8 +142,10 @@ function MonitoramentoSimplificado() {
     return matchesStatus && matchesTipo && matchesSearch;
   }) : [];
 
-  // Obter tipos únicos de equipamentos para os filtros
-  const tiposEquipamentos = Array.isArray(equipamentos) ? [...new Set(equipamentos.map(eq => eq.modelo))].sort() : [];
+  // Obter tipos únicos de equipamentos para os filtros (usar campo tipo, não modelo)
+  const tiposEquipamentos = Array.isArray(equipamentos) 
+    ? [...new Set(equipamentos.filter(eq => eq.tipo).map(eq => eq.tipo))].sort() 
+    : [];
 
   const handleEquipamentoClick = (equipamento) => {
     setEquipamentoSelecionado(equipamento);
@@ -127,13 +159,43 @@ function MonitoramentoSimplificado() {
 
   const getDadosAtuais = (equipamento) => {
     const dados = dadosMonitoramento[equipamento.id];
-    return dados || {
-      latencia: equipamento.latencia || 0,
-      cpu: equipamento.cpu || 0,
-      memoria: equipamento.memoria || 0,
-      temperatura: equipamento.temperatura || 0,
-      ultimoPing: equipamento.ultimoPing
+    if (dados) {
+      return dados;
+    }
+    // Se não houver dados ainda, retornar valores padrão
+    return {
+      latencia: 0,
+      online: false,
+      ultimoPing: null,
+      erro: 'Aguardando primeiro ping...'
     };
+  };
+
+  // Determinar status do equipamento baseado no ping
+  const getStatusEquipamento = (equipamento) => {
+    const dados = getDadosAtuais(equipamento);
+    
+    // Se temos dados de ping, usar eles para determinar o status
+    if (dados.ultimoPing) {
+      if (dados.online) {
+        // Online, mas verificar latência para determinar se está OK ou com atenção
+        if (dados.latencia > 0) {
+          if (dados.latencia < 50) {
+            return 'online';
+          } else if (dados.latencia < 100) {
+            return 'atencao';
+          } else {
+            return 'atencao'; // Latência alta
+          }
+        }
+        return 'online';
+      } else {
+        return 'offline';
+      }
+    }
+    
+    // Se não há dados de ping ainda, usar o status do cadastro
+    return equipamento.status?.toLowerCase() || 'offline';
   };
 
   // Estados de loading e error
@@ -310,7 +372,7 @@ function MonitoramentoSimplificado() {
     React.createElement('div', {
       style: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
+        gridTemplateColumns: 'repeat(4, 1fr)',
         gap: '12px'
       }
     },
@@ -365,7 +427,7 @@ function MonitoramentoSimplificado() {
             }, equipamento.ipPrivado)
           ),
 
-          // Lado direito - Métricas e Status
+          // Lado direito - Latência (Ping)
           React.createElement('div', {
             style: {
               display: 'flex',
@@ -373,214 +435,52 @@ function MonitoramentoSimplificado() {
               gap: '8px'
             }
           },
-            // Métricas (apenas se online)
-            equipamento.status !== 'offline' && React.createElement('div', {
-              style: {
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }
-            },
-              // Latência (Ping)
-              React.createElement('div', {
-                style: {
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '2px',
-                  padding: '4px 6px',
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: '4px',
-                  minWidth: '50px'
-                }
-              },
-                React.createElement('div', {
-                  style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }
-                },
-                  React.createElement('div', {
-                    width: '6px',
-                    height: '6px',
-                    backgroundColor: getMetricaColor(dadosAtuais.latencia, 'latencia'),
-                    borderRadius: '50%'
-                  }),
-                  React.createElement('span', {
-                    style: {
-                      fontSize: '9px',
-                      fontWeight: '600',
-                      color: getMetricaColor(dadosAtuais.latencia, 'latencia')
-                    }
-                  }, `${dadosAtuais.latencia}ms`)
-                ),
-                React.createElement('span', {
-                  style: {
-                    fontSize: '7px',
-                    color: '#737373',
-                    fontWeight: '500'
-                  }
-                }, 'Ping')
-              ),
-
-              // CPU
-              React.createElement('div', {
-                style: {
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '2px',
-                  padding: '4px 6px',
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: '4px',
-                  minWidth: '40px'
-                }
-              },
-                React.createElement('div', {
-                  style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }
-                },
-                  React.createElement('div', {
-                    width: '6px',
-                    height: '6px',
-                    backgroundColor: getMetricaColor(dadosAtuais.cpu, 'cpu'),
-                    borderRadius: '50%'
-                  }),
-                  React.createElement('span', {
-                    style: {
-                      fontSize: '9px',
-                      fontWeight: '600',
-                      color: getMetricaColor(dadosAtuais.cpu, 'cpu')
-                    }
-                  }, `${dadosAtuais.cpu}%`)
-                ),
-                React.createElement('span', {
-                  style: {
-                    fontSize: '7px',
-                    color: '#737373',
-                    fontWeight: '500'
-                  }
-                }, 'CPU')
-              ),
-
-              // Memória (RAM)
-              React.createElement('div', {
-                style: {
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '2px',
-                  padding: '4px 6px',
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: '4px',
-                  minWidth: '40px'
-                }
-              },
-                React.createElement('div', {
-                  style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }
-                },
-                  React.createElement('div', {
-                    width: '6px',
-                    height: '6px',
-                    backgroundColor: getMetricaColor(dadosAtuais.memoria, 'memoria'),
-                    borderRadius: '50%'
-                  }),
-                  React.createElement('span', {
-                    style: {
-                      fontSize: '9px',
-                      fontWeight: '600',
-                      color: getMetricaColor(dadosAtuais.memoria, 'memoria')
-                    }
-                  }, `${dadosAtuais.memoria}%`)
-                ),
-                React.createElement('span', {
-                  style: {
-                    fontSize: '7px',
-                    color: '#737373',
-                    fontWeight: '500'
-                  }
-                }, 'RAM')
-              ),
-
-              // Temperatura (Temp)
-              React.createElement('div', {
-                style: {
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '2px',
-                  padding: '4px 6px',
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: '4px',
-                  minWidth: '45px'
-                }
-              },
-                React.createElement('div', {
-                  style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }
-                },
-                  React.createElement('div', {
-                    width: '6px',
-                    height: '6px',
-                    backgroundColor: getMetricaColor(dadosAtuais.temperatura, 'temperatura'),
-                    borderRadius: '50%'
-                  }),
-                  React.createElement('span', {
-                    style: {
-                      fontSize: '9px',
-                      fontWeight: '600',
-                      color: getMetricaColor(dadosAtuais.temperatura, 'temperatura')
-                    }
-                  }, `${dadosAtuais.temperatura}°C`)
-                ),
-                React.createElement('span', {
-                  style: {
-                    fontSize: '7px',
-                    color: '#737373',
-                    fontWeight: '500'
-                  }
-                }, 'Temp')
-              )
-            ),
-
-            // Status
+            // Latência (Ping)
             React.createElement('div', {
               style: {
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                gap: '4px',
-                padding: '4px 8px',
-                backgroundColor: `${getStatusColor(equipamento.status)}20`,
+                gap: '2px',
+                padding: '6px 10px',
+                backgroundColor: '#f8f9fa',
                 borderRadius: '6px',
-                border: `1px solid ${getStatusColor(equipamento.status)}40`,
-                minWidth: '60px',
-                justifyContent: 'center'
+                minWidth: '60px'
               }
             },
               React.createElement('div', {
-                width: '6px',
-                height: '6px',
-                backgroundColor: getStatusColor(equipamento.status),
-                borderRadius: '50%'
-              }),
+                style: {
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }
+              },
+                React.createElement('div', {
+                  style: {
+                    width: '8px',
+                    height: '8px',
+                    backgroundColor: dadosAtuais.latencia > 0 ? getMetricaColor(dadosAtuais.latencia, 'latencia') : '#6b7280',
+                    borderRadius: '50%'
+                  }
+                }),
+                React.createElement('span', {
+                  style: {
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: dadosAtuais.latencia > 0 ? getMetricaColor(dadosAtuais.latencia, 'latencia') : '#6b7280',
+                    fontFamily: 'monospace'
+                  }
+                }, dadosAtuais.latencia > 0 ? `${dadosAtuais.latencia}ms` : dadosAtuais.erro ? '--' : '...')
+              ),
               React.createElement('span', {
                 style: {
-                  fontSize: '9px',
+                  fontSize: '8px',
+                  color: '#737373',
                   fontWeight: '500',
-                  color: getStatusColor(equipamento.status)
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
                 }
-              }, getStatusText(equipamento.status))
+              }, 'Ping')
             )
           )
         );
@@ -588,10 +488,97 @@ function MonitoramentoSimplificado() {
     ),
 
     // Modal de detalhes
-    modalVisible && equipamentoSelecionado && React.createElement(ModalDetalhesEquipamento, {
+    modalVisible && equipamentoSelecionado && React.createElement(ModalDetalhesMonitoramento, {
       equipamento: equipamentoSelecionado,
+      dadosMonitoramento: dadosMonitoramento,
       onClose: closeModal
-    })
+    }),
+
+    // Contador de ping no canto inferior direito
+    React.createElement('div', {
+      style: {
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        backdropFilter: 'blur(10px)',
+        padding: '12px 16px',
+        borderRadius: '12px',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        minWidth: '200px'
+      }
+    },
+      // Indicador de execução
+      executandoPing && React.createElement('div', {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          color: '#f59e0b',
+          fontSize: '12px',
+          fontWeight: '600'
+        }
+      },
+        React.createElement('div', {
+          style: {
+            width: '8px',
+            height: '8px',
+            backgroundColor: '#f59e0b',
+            borderRadius: '50%',
+            animation: 'pulse 1.5s ease-in-out infinite'
+          }
+        }),
+        'Executando ping...'
+      ),
+      
+      // Contador regressivo
+      React.createElement('div', {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          color: executandoPing ? '#f59e0b' : 'rgba(255, 255, 255, 0.9)',
+          fontSize: '14px',
+          fontWeight: '500'
+        }
+      },
+        React.createElement('span', {
+          style: {
+            fontSize: '11px',
+            color: 'rgba(255, 255, 255, 0.6)'
+          }
+        }, 'Próximo ping em:'),
+        React.createElement('span', {
+          style: {
+            fontSize: '16px',
+            fontWeight: 'bold',
+            color: executandoPing ? '#f59e0b' : tempoRestante <= 5 ? '#ef4444' : '#10b981',
+            fontFamily: 'monospace',
+            minWidth: '30px',
+            textAlign: 'right'
+          }
+        }, `${tempoRestante}s`)
+      )
+    ),
+
+    // Estilos de animação
+    React.createElement('style', null, `
+      @keyframes pulse {
+        0%, 100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.5;
+          transform: scale(1.2);
+        }
+      }
+    `)
   );
 }
 

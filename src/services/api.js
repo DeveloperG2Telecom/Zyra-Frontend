@@ -562,6 +562,57 @@ class ApiService {
   async healthCheck() {
     return this.request('/health');
   }
+
+  // Métodos para monitoramento
+  async getDadosMonitoramento() {
+    // Não usar cache para monitoramento - sempre buscar dados atualizados
+    const url = `${this.baseURL}/monitoramento`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return response.json();
+  }
+
+  async getDadosMonitoramentoEquipamento(equipamentoId) {
+    const url = `${this.baseURL}/monitoramento/${equipamentoId}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return response.json();
+  }
+
+  // Métodos para histórico de ping
+  async getHistoricoPing(equipamentoId, limite = 50) {
+    const url = `${this.baseURL}/ping-historico/${equipamentoId}?limite=${limite}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return response.json();
+  }
 }
 
 export default new ApiService();
