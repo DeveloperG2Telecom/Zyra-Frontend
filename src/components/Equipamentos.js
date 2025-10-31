@@ -97,6 +97,13 @@ const Equipamentos = React.memo(() => {
       );
     }
     
+    // Ordenar alfabeticamente por nome
+    filtered.sort((a, b) => {
+      const nomeA = (a.nome || '').toLowerCase();
+      const nomeB = (b.nome || '').toLowerCase();
+      return nomeA.localeCompare(nomeB, 'pt-BR');
+    });
+    
     return filtered;
   }, [equipamentos, debouncedSearchTerm, filtros]);
 

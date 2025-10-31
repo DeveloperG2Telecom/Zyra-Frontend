@@ -60,7 +60,22 @@ class ApiService {
 
   // Método genérico para fazer requisições (otimizado)
   async request(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
+    let url = `${this.baseURL}${endpoint}`;
+    // Anexar query params se fornecidos
+    if (options.params && typeof options.params === 'object') {
+      const queryParams = new URLSearchParams();
+      Object.entries(options.params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, value);
+        }
+      });
+      const qs = queryParams.toString();
+      if (qs) {
+        url += (url.includes('?') ? '&' : '?') + qs;
+      }
+      // Não enviar params no corpo/opções da requisição
+      delete options.params;
+    }
     
     // Verificar cache para GET requests
     if (!options.method || options.method === 'GET') {
@@ -96,7 +111,21 @@ class ApiService {
 
   // Método para requisições sem autenticação (para topologia)
   async requestWithoutAuth(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
+    let url = `${this.baseURL}${endpoint}`;
+    // Anexar query params se fornecidos
+    if (options.params && typeof options.params === 'object') {
+      const queryParams = new URLSearchParams();
+      Object.entries(options.params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, value);
+        }
+      });
+      const qs = queryParams.toString();
+      if (qs) {
+        url += (url.includes('?') ? '&' : '?') + qs;
+      }
+      delete options.params;
+    }
     
     // Verificar cache para GET requests
     if (!options.method || options.method === 'GET') {
@@ -169,8 +198,8 @@ class ApiService {
     return this.request('/auth/me');
   }
 
-  // Métodos para equipamentos com paginação
-  async getEquipamentos(filters = {}, page = 1, limit = 20) {
+  // Métodos para equipamentos (por padrão sem limite)
+  async getEquipamentos(filters = {}, page = 1, limit = 'all') {
     return this.request('/equipamentos', {
       method: 'GET',
       params: { ...filters, page, limit }
@@ -502,6 +531,31 @@ class ApiService {
 
   async getTopologiaEquipamentos() {
     return this.requestWithoutAuth('/topologia/equipamentos');
+  }
+
+  // Métodos para etiquetas de conexões
+  async getTopologiaConexoes() {
+    return this.requestWithoutAuth('/topologia/conexoes');
+  }
+
+  async saveTopologiaConexaoLabel(connectionId, label) {
+    return this.requestWithoutAuth('/topologia/conexoes', {
+      method: 'POST',
+      body: JSON.stringify({ connectionId, label }),
+    });
+  }
+
+  async updateTopologiaConexaoLabel(connectionId, label) {
+    return this.requestWithoutAuth(`/topologia/conexoes/${connectionId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ label }),
+    });
+  }
+
+  async deleteTopologiaConexaoLabel(connectionId) {
+    return this.requestWithoutAuth(`/topologia/conexoes/${connectionId}`, {
+      method: 'DELETE',
+    });
   }
 
   // Método para verificar saúde da API

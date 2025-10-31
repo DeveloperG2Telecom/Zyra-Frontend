@@ -11,7 +11,7 @@ export const useEquipamentos = () => {
     currentPage: 1,
     totalPages: 1,
     totalItems: 0,
-    itemsPerPage: 20,
+    itemsPerPage: 0,
     hasNextPage: false,
     hasPrevPage: false
   });
@@ -23,7 +23,7 @@ export const useEquipamentos = () => {
   const CACHE_DURATION = 30000; // 30 segundos de cache
   const MIN_REQUEST_INTERVAL = 5000; // Mínimo 5 segundos entre requisições
 
-  const loadEquipamentos = useCallback(async (filters = {}, page = 1, limit = 20, forceRefresh = false) => {
+  const loadEquipamentos = useCallback(async (filters = {}, page = 1, limit = 'all', forceRefresh = false) => {
     const now = Date.now();
     
     // Verificar se já está fazendo uma requisição

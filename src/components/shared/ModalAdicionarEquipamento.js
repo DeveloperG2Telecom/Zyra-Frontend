@@ -190,11 +190,18 @@ const ModalAdicionarEquipamento = ({ isVisible, onClose, onSave }) => {
             loadEquipamentos()
           ]);
           
+          // Ordenar equipamentos alfabeticamente por nome
+          const equipamentosOrdenados = (equipamentos || []).slice().sort((a, b) => {
+            const nomeA = (a.nome || '').toLowerCase();
+            const nomeB = (b.nome || '').toLowerCase();
+            return nomeA.localeCompare(nomeB, 'pt-BR');
+          });
+          
           setMasterData({
             tiposAcesso: tiposAcesso || [],
             pops: pops || [],
             funcoes: funcoes || [],
-            equipamentos: equipamentos || []
+            equipamentos: equipamentosOrdenados
           });
           
           console.log('✅ MODAL: Dados mestres carregados:', { tiposAcesso, pops, funcoes, equipamentos });
