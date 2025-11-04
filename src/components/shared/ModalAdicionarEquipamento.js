@@ -142,6 +142,51 @@ const ModalAdicionarEquipamento = ({ isVisible, onClose, onSave }) => {
   });
 
   const [funcaoInput, setFuncaoInput] = useState('');
+  const [alertaDuplicata, setAlertaDuplicata] = useState(null);
+
+  // Verificar duplicatas quando MAC ou IP mudarem
+  useEffect(() => {
+    const verificarDuplicatas = () => {
+      if (!masterData.equipamentos || masterData.equipamentos.length === 0) {
+        setAlertaDuplicata(null);
+        return;
+      }
+
+      const mac = formData.serialMac?.trim().toLowerCase();
+      const ip = formData.ipPrivado?.trim();
+
+      const duplicatas = [];
+      
+      if (mac) {
+        const equipamentoComMac = masterData.equipamentos.find(
+          eq => eq.serialMac && eq.serialMac.trim().toLowerCase() === mac
+        );
+        if (equipamentoComMac) {
+          duplicatas.push(`MAC: ${equipamentoComMac.nome}`);
+        }
+      }
+
+      if (ip) {
+        const equipamentoComIP = masterData.equipamentos.find(
+          eq => eq.ipPrivado && eq.ipPrivado.trim() === ip
+        );
+        if (equipamentoComIP) {
+          duplicatas.push(`IP: ${equipamentoComIP.nome}`);
+        }
+      }
+
+      if (duplicatas.length > 0) {
+        setAlertaDuplicata({
+          tipo: 'duplicata',
+          mensagens: duplicatas
+        });
+      } else {
+        setAlertaDuplicata(null);
+      }
+    };
+
+    verificarDuplicatas();
+  }, [formData.serialMac, formData.ipPrivado, masterData.equipamentos]);
 
   // Limpar dados do formulário quando o modal abrir
   useEffect(() => {
@@ -274,9 +319,10 @@ const ModalAdicionarEquipamento = ({ isVisible, onClose, onSave }) => {
       fotoEquipamento: '',
       observacoes: ''
     });
-    setFuncaoInput('');
-    onClose();
-  };
+      setFuncaoInput('');
+      setAlertaDuplicata(null);
+      onClose();
+    };
 
   if (!isVisible) {
     return null;
@@ -387,6 +433,60 @@ const ModalAdicionarEquipamento = ({ isVisible, onClose, onSave }) => {
           </button>
         </div>
         
+        {/* Card de Alerta de Duplicata */}
+        {alertaDuplicata && (
+          <div style={{
+            padding: '12px 16px',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px'
+          }}>
+            <div style={{
+              fontSize: '18px',
+              flexShrink: 0
+            }}>⚠️</div>
+            <div style={{ flex: 1 }}>
+              <div style={{
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#991b1b',
+                marginBottom: '4px'
+              }}>
+                Atenção: Duplicata Detectada
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: '#7f1d1d'
+              }}>
+                {alertaDuplicata.mensagens.map((msg, idx) => (
+                  <div key={idx} style={{ marginBottom: '2px' }}>
+                    {msg}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAlertaDuplicata(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '18px',
+                color: '#991b1b',
+                cursor: 'pointer',
+                padding: '0',
+                lineHeight: 1
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Formulário */}
         <form
           onSubmit={handleSubmit}

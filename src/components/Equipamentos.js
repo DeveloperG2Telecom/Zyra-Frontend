@@ -37,11 +37,14 @@ const Equipamentos = React.memo(() => {
   // Hook para notificações
   const { notifications, showSuccess, showError, removeNotification } = useNotification();
   
-  // Carregar equipamentos quando o componente monta (sem paginação)
+  // Carregar equipamentos apenas uma vez quando o componente monta
   useEffect(() => {
-    console.log('🔄 Equipamentos: Componente montado, carregando equipamentos...');
-    loadEquipamentos({}, 1, 1000); // Buscar todos os equipamentos
-  }, [loadEquipamentos]);
+    // Só carregar se não houver equipamentos ainda (primeira vez)
+    if (equipamentos.length === 0 && !loading) {
+      console.log('🔄 Equipamentos: Componente montado, carregando equipamentos uma vez...');
+      loadEquipamentos({}, 1, 1000); // Buscar todos os equipamentos
+    }
+  }, []); // Dependências vazias - executar apenas uma vez na montagem
   
   // Debounce da pesquisa para melhor performance
   const debouncedSearchTerm = useDebounce(searchTerm, 300);

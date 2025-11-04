@@ -128,17 +128,6 @@ function Backups() {
     setEquipamentoSelecionado(null);
   };
 
-  const executarBackup = async (equipamentoId) => {
-    showLoading('Executando backup...');
-    
-    // Simular execução do backup
-    setTimeout(() => {
-      hideLoading();
-      // Aqui seria a lógica real de backup
-      console.log(`Backup executado para equipamento ${equipamentoId}`);
-    }, 2000);
-  };
-
   const abrirModalBackup = (equipamentoId, backupId = null) => {
     if (backupId) {
       // Editar backup existente
@@ -655,38 +644,39 @@ function Backups() {
           overflow: 'auto'
         }
       },
-        // Header
+        // Header simplificado
         React.createElement('div', { 
           style: {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: '24px'
+            marginBottom: '16px'
           }
         },
           React.createElement('div', null,
             React.createElement('h2', { 
               style: {
-                fontSize: '20px',
+                fontSize: '18px',
                 fontWeight: 'bold',
                 color: 'white',
-                marginBottom: '4px'
+                marginBottom: '2px'
               }
-            }, 'Gestão de Backups'),
+            }, 'Backups'),
             React.createElement('p', { 
               style: {
                 fontSize: '11px',
                 color: 'rgba(255, 255, 255, 0.7)'
               }
-            }, `${equipamentosFiltrados.length} equipamentos encontrados`)
+            }, `${equipamentosFiltrados.length} equipamentos`)
           ),
           
-          // Filtros e botão de backup manual
+          // Filtros e botão
           React.createElement('div', { 
             style: {
               display: 'flex',
-              gap: '8px',
-              alignItems: 'center'
+              gap: '6px',
+              alignItems: 'center',
+              flexWrap: 'wrap'
             }
           },
             React.createElement('button', {
@@ -694,8 +684,8 @@ function Backups() {
               style: {
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '8px 12px',
+                gap: '4px',
+                padding: '6px 10px',
                 borderRadius: '6px',
                 border: 'none',
                 background: 'rgba(125, 38, 217, 0.1)',
@@ -722,7 +712,7 @@ function Backups() {
                 React.createElement('line', { x1: '16', y1: '17', x2: '8', y2: '17' }),
                 React.createElement('polyline', { points: '10,9 9,9 8,9' })
               ),
-              'Registrar Backup Manual'
+              'Novo'
             ),
             React.createElement('button', {
               onClick: () => setFiltroStatus('todos'),
@@ -783,29 +773,29 @@ function Backups() {
           )
         ),
         
-        // Campo de pesquisa
+        // Campo de pesquisa compacto
         React.createElement('div', { 
           style: {
-            marginBottom: '20px'
+            marginBottom: '16px'
           }
         },
           React.createElement('div', { 
             style: {
               position: 'relative',
-              maxWidth: '400px'
+              maxWidth: '350px'
             }
           },
             React.createElement('input', {
               type: 'text',
               value: pesquisa,
               onChange: (e) => setPesquisa(e.target.value),
-              placeholder: 'Pesquisar equipamentos...',
+              placeholder: 'Pesquisar...',
               style: {
                 width: '100%',
-                padding: '12px 16px 12px 40px',
+                padding: '8px 12px 8px 32px',
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                border: '2px solid rgba(125, 38, 217, 0.2)',
-                borderRadius: '8px',
+                border: '1px solid rgba(125, 38, 217, 0.2)',
+                borderRadius: '6px',
                 fontSize: '12px',
                 outline: 'none',
                 transition: 'all 0.2s',
@@ -815,17 +805,17 @@ function Backups() {
             React.createElement('div', { 
               style: {
                 position: 'absolute',
-                left: '12px',
+                left: '10px',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 color: '#737373',
-                fontSize: '16px'
+                fontSize: '14px'
               }
             }, '🔍')
           )
         ),
         
-        // Lista de equipamentos
+        // Lista de equipamentos - Cards compactos
         loading ? React.createElement('div', { 
           style: {
             display: 'flex',
@@ -835,11 +825,11 @@ function Backups() {
             color: 'rgba(255, 255, 255, 0.7)',
             fontSize: '14px'
           }
-        }, 'Carregando equipamentos...') : React.createElement('div', { 
+        }, 'Carregando...') : React.createElement('div', { 
           style: {
             display: 'grid',
-            gridTemplateColumns: 'repeat(6, 1fr)',
-            gap: '12px'
+            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+            gap: '10px'
           }
         },
           equipamentosFiltrados.map(equipamento =>
@@ -853,213 +843,163 @@ function Backups() {
                 padding: '10px',
                 cursor: 'pointer',
                 border: '1px solid rgba(125, 38, 217, 0.1)',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                transition: 'all 0.2s'
+                boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
+                transition: 'all 0.2s',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
               }
             },
-              // Header do card
+              // Header compacto: Nome + Status
               React.createElement('div', { 
                 style: {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'flex-start',
-                  marginBottom: '8px'
+                  gap: '8px'
                 }
               },
                 React.createElement('div', { 
                   style: {
-                    flex: 1
+                    flex: 1,
+                    minWidth: 0
                   }
                 },
                   React.createElement('h3', { 
                     style: {
                       fontSize: '12px',
-                      fontWeight: 'bold',
+                      fontWeight: '600',
                       color: '#404040',
-                      marginBottom: '3px',
-                      lineHeight: '1.2'
+                      marginBottom: '2px',
+                      lineHeight: '1.2',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }
                   }, equipamento.nome),
                   React.createElement('p', { 
                     style: {
-                      fontSize: '9px',
+                      fontSize: '10px',
                       color: '#737373',
                       margin: 0,
-                      lineHeight: '1.2'
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
                     }
-                  }, `${equipamento.ipPrivado} • ${equipamento.localidade}`)
+                  }, equipamento.ipPrivado)
                 ),
+                // Status badge compacto
                 React.createElement('div', { 
                   style: {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
-                    padding: '3px 6px',
-                    backgroundColor: `${getStatusColor(equipamento.statusBackup)}20`,
+                    padding: '3px 8px',
+                    backgroundColor: `${getStatusColor(equipamento.statusBackup)}15`,
                     borderRadius: '4px',
-                    border: `1px solid ${getStatusColor(equipamento.statusBackup)}40`
+                    border: `1px solid ${getStatusColor(equipamento.statusBackup)}40`,
+                    flexShrink: 0
                   }
                 },
                   React.createElement('div', { 
                     style: {
-                      width: '4px',
-                      height: '4px',
+                      width: '5px',
+                      height: '5px',
                       backgroundColor: getStatusColor(equipamento.statusBackup),
                       borderRadius: '50%'
                     }
                   }),
                   React.createElement('span', { 
                     style: {
-                      fontSize: '8px',
-                      fontWeight: '500',
-                      color: getStatusColor(equipamento.statusBackup)
+                      fontSize: '10px',
+                      fontWeight: '600',
+                      color: getStatusColor(equipamento.statusBackup),
+                      whiteSpace: 'nowrap'
                     }
                   }, getStatusText(equipamento.statusBackup))
                 )
               ),
               
-              // Informações do backup
-              React.createElement('div', { 
-                style: {
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '8px',
-                  marginBottom: '8px'
-                }
-              },
-                React.createElement('div', null,
-                  React.createElement('span', { 
-                    style: {
-                      fontSize: '8px',
-                      color: '#737373',
-                      display: 'block',
-                      marginBottom: '1px'
-                    }
-                  }, 'Último Backup'),
-                  React.createElement('span', { 
-                    style: {
-                      fontSize: '10px',
-                      fontWeight: '500',
-                      color: '#404040'
-                    }
-                  }, new Date(equipamento.ultimoBackup).toLocaleDateString('pt-BR'))
-                ),
-                React.createElement('div', null,
-                  React.createElement('span', { 
-                    style: {
-                      fontSize: '8px',
-                      color: '#737373',
-                      display: 'block',
-                      marginBottom: '1px'
-                    }
-                  }, 'Total de Backups'),
-                  React.createElement('span', { 
-                    style: {
-                      fontSize: '10px',
-                      fontWeight: '500',
-                      color: '#404040'
-                    }
-                  }, equipamento.totalBackups)
-                )
-              ),
-              
-              // Alerta de pendência
-              equipamento.statusBackup !== 'em-dia' && React.createElement('div', { 
-                style: {
-                  backgroundColor: equipamento.statusBackup === 'critico' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                  border: `1px solid ${equipamento.statusBackup === 'critico' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
-                  borderRadius: '4px',
-                  padding: '6px',
-                  marginBottom: '8px'
-                }
-              },
-                React.createElement('div', { 
-                  style: {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }
-                },
-                  React.createElement('svg', {
-                    width: '10',
-                    height: '10',
-                    viewBox: '0 0 24 24',
-                    fill: 'none',
-                    stroke: equipamento.statusBackup === 'critico' ? '#ef4444' : '#f59e0b',
-                    strokeWidth: '2',
-                    strokeLinecap: 'round',
-                    strokeLinejoin: 'round'
-                  },
-                    React.createElement('path', { d: 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z' }),
-                    React.createElement('line', { x1: '12', y1: '9', x2: '12', y2: '13' }),
-                    React.createElement('line', { x1: '12', y1: '17', x2: '12.01', y2: '17' })
-                  ),
-                  React.createElement('span', { 
-                    style: {
-                      fontSize: '8px',
-                      fontWeight: '500',
-                      color: equipamento.statusBackup === 'critico' ? '#ef4444' : '#f59e0b'
-                    }
-                  }, `${equipamento.diasSemBackup} dias sem backup`)
-                )
-              ),
-              
-              // Footer
+              // Informações compactas em linha
               React.createElement('div', { 
                 style: {
                   display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingTop: '8px',
-                  borderTop: '1px solid rgba(125, 38, 217, 0.1)'
+                  gap: '8px',
+                  fontSize: '10px'
                 }
               },
-                React.createElement('span', { 
-                  style: {
-                    fontSize: '8px',
-                    color: '#737373'
-                  }
-                }, `${equipamento.totalBackups} backups`),
+                // Última data
                 React.createElement('div', { 
                   style: {
-                    display: 'flex',
-                    gap: '6px'
+                    flex: 1,
+                    padding: '6px',
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '4px',
+                    border: '1px solid #e9ecef'
                   }
                 },
-                React.createElement('button', {
-                  onClick: (e) => {
-                    e.stopPropagation();
-                    executarBackup(equipamento.id);
-                  },
-                  style: {
-                    padding: '3px 6px',
-                    borderRadius: '3px',
-                    border: 'none',
-                    background: 'rgba(125, 38, 217, 0.1)',
-                    color: '#7d26d9',
-                    fontSize: '8px',
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }
-                  }, 'Executar'),
-                  React.createElement('button', {
-                    onClick: (e) => {
-                      e.stopPropagation();
-                      abrirModalBackup(equipamento.id);
-                    },
+                  React.createElement('div', { 
                     style: {
-                      padding: '3px 6px',
-                      borderRadius: '3px',
-                      border: 'none',
-                      background: 'rgba(16, 185, 129, 0.1)',
-                      color: '#10b981',
-                      fontSize: '8px',
-                      fontWeight: '500',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
+                      fontSize: '9px',
+                      color: '#737373',
+                      marginBottom: '2px',
+                      fontWeight: '500'
                     }
-                  }, 'Registrar')
+                  }, 'Data'),
+                  React.createElement('div', { 
+                    style: {
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      color: '#404040'
+                    }
+                  }, equipamento.ultimoBackup 
+                    ? new Date(equipamento.ultimoBackup).toLocaleDateString('pt-BR', { 
+                        day: '2-digit', 
+                        month: '2-digit'
+                      })
+                    : 'Nunca')
+                ),
+                // Tempo sem backup
+                React.createElement('div', { 
+                  style: {
+                    flex: 1,
+                    padding: '6px',
+                    backgroundColor: equipamento.statusBackup === 'critico' 
+                      ? 'rgba(239, 68, 68, 0.08)' 
+                      : equipamento.statusBackup === 'atrasado'
+                      ? 'rgba(245, 158, 11, 0.08)'
+                      : 'rgba(16, 185, 129, 0.08)',
+                    borderRadius: '4px',
+                    border: `1px solid ${equipamento.statusBackup === 'critico' 
+                      ? 'rgba(239, 68, 68, 0.2)' 
+                      : equipamento.statusBackup === 'atrasado'
+                      ? 'rgba(245, 158, 11, 0.2)'
+                      : 'rgba(16, 185, 129, 0.2)'}`
+                  }
+                },
+                  React.createElement('div', { 
+                    style: {
+                      fontSize: '9px',
+                      color: '#737373',
+                      marginBottom: '2px',
+                      fontWeight: '500'
+                    }
+                  }, 'Tempo'),
+                  React.createElement('div', { 
+                    style: {
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      color: getStatusColor(equipamento.statusBackup)
+                    }
+                  },
+                    equipamento.diasSemBackup === 999 
+                      ? 'Nunca'
+                      : equipamento.diasSemBackup === 0 
+                      ? 'Hoje' 
+                      : equipamento.diasSemBackup === 1
+                      ? '1 dia'
+                      : `${equipamento.diasSemBackup}d`
+                  )
                 )
               )
             )

@@ -43,10 +43,9 @@ function MonitoramentoSimplificado() {
   const [equipamentos, setEquipamentos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [tempoRestante, setTempoRestante] = useState(30); // Contador regressivo em segundos
   const [executandoPing, setExecutandoPing] = useState(false); // Indica se o ping está sendo executado
 
-  // Carregar equipamentos da API
+  // Carregar equipamentos da API apenas uma vez na inicialização
   useEffect(() => {
     const loadEquipamentos = async () => {
       try {
@@ -55,7 +54,7 @@ function MonitoramentoSimplificado() {
         // Garantir que equipamentos seja sempre um array
         const equipamentosArray = Array.isArray(data) ? data : (data?.data || []);
         setEquipamentos(equipamentosArray);
-        console.log('📊 Monitoramento: Equipamentos carregados:', equipamentosArray.length);
+        console.log('📊 Monitoramento: Equipamentos carregados uma vez na inicialização:', equipamentosArray.length);
       } catch (err) {
         console.error('❌ Monitoramento: Erro ao carregar equipamentos:', err);
         setError(err.message);
@@ -66,16 +65,17 @@ function MonitoramentoSimplificado() {
     };
 
     loadEquipamentos();
-  }, []);
+  }, []); // Executar apenas uma vez na montagem do componente
 
-  // Buscar dados reais de monitoramento a cada 30 segundos
+  // Buscar dados de monitoramento apenas uma vez na inicialização
+  // Dados de monitoramento são atualizados pelo backend, não precisamos buscar repetidamente
   useEffect(() => {
     if (!Array.isArray(equipamentos) || equipamentos.length === 0) return;
     
-    // Função para buscar dados de monitoramento
+    // Função para buscar dados de monitoramento (apenas uma vez)
     const buscarDadosMonitoramento = async () => {
       try {
-        setExecutandoPing(true); // Indicar que o ping está sendo executado
+        setExecutandoPing(true);
         const response = await api.getDadosMonitoramento();
         if (response.success && response.data && response.data.dados) {
           // Converter dados para o formato esperado pelo componente
@@ -91,41 +91,21 @@ function MonitoramentoSimplificado() {
           });
           
           setDadosMonitoramento(prev => ({ ...prev, ...novosDados }));
+          console.log('📊 Monitoramento: Dados de monitoramento carregados uma vez');
         }
-        setTempoRestante(30); // Resetar contador para 30 segundos
       } catch (error) {
         console.error('Erro ao buscar dados de monitoramento:', error);
       } finally {
-        setExecutandoPing(false); // Indicar que o ping terminou
+        setExecutandoPing(false);
       }
     };
     
-    // Buscar imediatamente
+    // Buscar apenas uma vez na inicialização
     buscarDadosMonitoramento();
     
-    // Buscar a cada 30 segundos (mesmo intervalo do backend)
-    const interval = setInterval(buscarDadosMonitoramento, 30000);
-
-    return () => clearInterval(interval);
-  }, [equipamentos]);
-
-  // Contador regressivo a cada segundo (não decrementa enquanto ping está executando)
-  useEffect(() => {
-    const contadorInterval = setInterval(() => {
-      setTempoRestante(prev => {
-        // Não decrementar se o ping está sendo executado
-        if (executandoPing) {
-          return prev;
-        }
-        if (prev <= 1) {
-          return 30; // Resetar para 30 quando chegar a 0
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(contadorInterval);
-  }, [executandoPing]);
+    // Removido: polling automático - dados serão atualizados apenas quando necessário
+    // Os dados serão atualizados apenas quando o usuário clicar em "Atualizar" ou quando houver alterações
+  }, [equipamentos.length]); // Executar apenas quando equipamentos forem carregados
 
   const equipamentosFiltrados = Array.isArray(equipamentos) ? equipamentos.filter(equipamento => {
     const statusReal = dadosMonitoramento[equipamento.id] 
@@ -494,37 +474,58 @@ function MonitoramentoSimplificado() {
       onClose: closeModal
     }),
 
-    // Contador de ping no canto inferior direito
+    // Botão de atualizar manual no canto inferior direito
     React.createElement('div', {
       style: {
         position: 'fixed',
         bottom: '20px',
         right: '20px',
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
-        backdropFilter: 'blur(10px)',
-        padding: '12px 16px',
-        borderRadius: '12px',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        minWidth: '200px'
+        zIndex: 1000
       }
     },
-      // Indicador de execução
-      executandoPing && React.createElement('div', {
+      React.createElement('button', {
+        onClick: async () => {
+          try {
+            setExecutandoPing(true);
+            const response = await api.getDadosMonitoramento();
+            if (response.success && response.data && response.data.dados) {
+              const novosDados = {};
+              Object.keys(response.data.dados).forEach(equipamentoId => {
+                const dados = response.data.dados[equipamentoId];
+                novosDados[equipamentoId] = {
+                  latencia: dados.latencia || 0,
+                  online: dados.online || false,
+                  ultimoPing: dados.ultimoPing || new Date().toISOString(),
+                  erro: dados.erro || null
+                };
+              });
+              setDadosMonitoramento(prev => ({ ...prev, ...novosDados }));
+            }
+          } catch (error) {
+            console.error('Erro ao atualizar dados de monitoramento:', error);
+          } finally {
+            setExecutandoPing(false);
+          }
+        },
+        disabled: executandoPing,
         style: {
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(10px)',
+          padding: '12px 16px',
+          borderRadius: '12px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+          color: executandoPing ? '#f59e0b' : 'rgba(255, 255, 255, 0.9)',
+          fontSize: '14px',
+          fontWeight: '500',
+          cursor: executandoPing ? 'wait' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          color: '#f59e0b',
-          fontSize: '12px',
-          fontWeight: '600'
+          transition: 'all 0.2s'
         }
       },
-        React.createElement('div', {
+        executandoPing && React.createElement('div', {
           style: {
             width: '8px',
             height: '8px',
@@ -533,36 +534,7 @@ function MonitoramentoSimplificado() {
             animation: 'pulse 1.5s ease-in-out infinite'
           }
         }),
-        'Executando ping...'
-      ),
-      
-      // Contador regressivo
-      React.createElement('div', {
-        style: {
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          color: executandoPing ? '#f59e0b' : 'rgba(255, 255, 255, 0.9)',
-          fontSize: '14px',
-          fontWeight: '500'
-        }
-      },
-        React.createElement('span', {
-          style: {
-            fontSize: '11px',
-            color: 'rgba(255, 255, 255, 0.6)'
-          }
-        }, 'Próximo ping em:'),
-        React.createElement('span', {
-          style: {
-            fontSize: '16px',
-            fontWeight: 'bold',
-            color: executandoPing ? '#f59e0b' : tempoRestante <= 5 ? '#ef4444' : '#10b981',
-            fontFamily: 'monospace',
-            minWidth: '30px',
-            textAlign: 'right'
-          }
-        }, `${tempoRestante}s`)
+        executandoPing ? 'Atualizando...' : 'Atualizar Dados'
       )
     ),
 

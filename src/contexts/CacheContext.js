@@ -22,17 +22,17 @@ export const CacheProvider = ({ children }) => {
     cidades: { data: null, timestamp: null, loading: false }
   });
 
-  // Tempo de expiração do cache (5 minutos)
-  const CACHE_EXPIRY = 5 * 60 * 1000;
+  // Cache não expira automaticamente - só será invalidado manualmente após alterações
+  // Isso evita leituras desnecessárias ao banco de dados
+  const CACHE_EXPIRY = Infinity; // Cache permanente até invalidação manual
 
   // Verificar se o cache está válido
   const isCacheValid = (key) => {
     const item = cache[key];
     if (!item || !item.data || !item.timestamp) return false;
     
-    const now = Date.now();
-    const age = now - item.timestamp;
-    return age < CACHE_EXPIRY;
+    // Cache sempre válido até ser invalidado manualmente
+    return true;
   };
 
   // Carregar dados com cache inteligente

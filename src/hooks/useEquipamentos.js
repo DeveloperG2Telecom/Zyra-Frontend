@@ -20,8 +20,8 @@ export const useEquipamentos = () => {
   const lastRequestTime = useRef(0);
   const requestTimeout = useRef(null);
   const isRequesting = useRef(false);
-  const CACHE_DURATION = 30000; // 30 segundos de cache
-  const MIN_REQUEST_INTERVAL = 5000; // Mínimo 5 segundos entre requisições
+  const CACHE_DURATION = Infinity; // Cache permanente - só buscar na inicialização ou quando forçado
+  const MIN_REQUEST_INTERVAL = 60000; // Mínimo 60 segundos entre requisições (só para segurança)
 
   const loadEquipamentos = useCallback(async (filters = {}, page = 1, limit = 'all', forceRefresh = false) => {
     const now = Date.now();
@@ -32,15 +32,15 @@ export const useEquipamentos = () => {
       return;
     }
 
-    // Verificar intervalo mínimo entre requisições
-    if (!forceRefresh && (now - lastRequestTime.current) < MIN_REQUEST_INTERVAL) {
-      console.log('⏳ USEEQUIPAMENTOS: Muito cedo para nova requisição, aguardando...');
+    // Verificar se há dados em cache - só buscar se não houver dados ou se for forçado
+    if (!forceRefresh && equipamentos.length > 0) {
+      console.log('💾 USEEQUIPAMENTOS: Usando dados do cache (não há necessidade de buscar novamente)');
       return;
     }
 
-    // Verificar se há dados em cache recente
-    if (!forceRefresh && equipamentos.length > 0 && (now - lastRequestTime.current) < CACHE_DURATION) {
-      console.log('💾 USEEQUIPAMENTOS: Usando dados do cache');
+    // Verificar intervalo mínimo entre requisições (apenas para segurança)
+    if (!forceRefresh && (now - lastRequestTime.current) < MIN_REQUEST_INTERVAL) {
+      console.log('⏳ USEEQUIPAMENTOS: Muito cedo para nova requisição, aguardando...');
       return;
     }
 
@@ -163,12 +163,14 @@ export const useEquipamentos = () => {
     }
   }, [removeFromCache]);
 
-  // Carregamento inicial apenas se não há dados
+  // Carregamento inicial apenas uma vez quando o componente monta
   useEffect(() => {
-    if (equipamentos.length === 0 && !loading) {
+    // Só carregar se realmente não houver dados (primeira vez)
+    if (equipamentos.length === 0 && !loading && !isRequesting.current) {
+      console.log('🔄 USEEQUIPAMENTOS: Carregamento inicial - buscando dados do banco');
       loadEquipamentos();
     }
-  }, []); // Dependências vazias para executar apenas uma vez
+  }, []); // Dependências vazias - executar apenas uma vez na montagem
 
   // Função para forçar atualização
   const refreshEquipamentos = useCallback(async () => {

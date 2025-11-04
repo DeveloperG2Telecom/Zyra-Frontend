@@ -188,10 +188,13 @@ const Dashboard = () => {
     };
   };
 
-  // Carregar dados iniciais
+  // Carregar dados iniciais apenas uma vez na montagem do componente
   useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+    // Só buscar se não houver dados ainda
+    if (!dashboardData && !loading) {
+      fetchDashboardData();
+    }
+  }, []); // Dependências vazias - executar apenas uma vez
 
   // Função para formatar números
   const formatNumber = (num) => {
