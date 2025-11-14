@@ -1,4 +1,9 @@
-const API_BASE_URL = 'http://localhost:3002/api/v1';
+// Configuração da URL da API
+// Usa variável de ambiente se disponível, caso contrário usa a URL da Vercel em produção ou localhost em desenvolvimento
+const API_BASE_URL = process.env.REACT_APP_API_URL || 
+  (process.env.NODE_ENV === 'production' 
+    ? 'https://zyra-back.vercel.app/api/v1' 
+    : 'http://localhost:3002/api/v1');
 
 class ApiService {
   constructor() {
