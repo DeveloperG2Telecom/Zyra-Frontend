@@ -2,7 +2,10 @@
   "name": "zyra-frontend",
   "version": "1.0.0",
   "private": true,
+  "main": "server.js",
+  "bin": "server.js",
   "dependencies": {
+    "express": "^4.18.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-icons": "^5.5.0",
@@ -12,6 +15,7 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.4.21",
+    "pkg": "^5.8.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17"
   },
@@ -19,7 +23,13 @@
     "start": "set PORT=10000 && react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "serve": "node server.js",
+    "build:exe": "node build-exe.js",
+    "build:exe:pkg": "npx pkg server.js --targets node18-win-x64,node18-linux-x64,node18-macos-x64 --output-path dist",
+    "build:exe:win": "npx pkg server.js --targets node18-win-x64 --output-path dist --output zyra-frontend.exe",
+    "build:exe:linux": "npx pkg server.js --targets node18-linux-x64 --output-path dist --output zyra-frontend",
+    "build:exe:mac": "npx pkg server.js --targets node18-macos-x64 --output-path dist --output zyra-frontend"
   },
   "eslintConfig": {
     "extends": [
@@ -38,5 +48,19 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "pkg": {
+    "scripts": [
+      "server.js"
+    ],
+    "assets": [
+      "build/**/*"
+    ],
+    "targets": [
+      "node18-win-x64",
+      "node18-linux-x64",
+      "node18-macos-x64"
+    ],
+    "outputPath": "dist"
   }
 }
